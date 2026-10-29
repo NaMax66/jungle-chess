@@ -1,1 +1,14 @@
-{"name":"jungle-chess","version":"0.1.0","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test"}}
+{
+  "name": "jungle-chess",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "node server.mjs --dist",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=22" }
+}

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {initial,legalMoves,move,positionKey} from '../dist/engine.js';
+import {initial,legalMoves,move,positionKey} from '../public/engine.js';
 const p=(animal,owner,x,y)=>({id:owner+'-'+animal,animal,owner,x,y});
 const game=(pieces)=>({...initial(),pieces,positions:{}});
 const can=(s,id,x,y)=>legalMoves(s,id).some(m=>m.x===x&&m.y===y);
@@ -15,6 +15,7 @@ test('illegal moves do not mutate game',()=>{const s=initial(),before=JSON.strin
 test('no legal moves ends game',()=>{const s=game([p('lion','blue',0,0),p('wolf','blue',1,1),p('elephant','blue',0,2),p('dog','blue',6,8),p('cat','red',0,1)]);const next=move(s,'blue-dog',6,7);assert.equal(next.winner,'blue');assert.equal(next.reason,'У соперника нет допустимых ходов');});
 test('100 half moves and repetition draw',()=>{const s=game([p('cat','blue',0,8),p('cat','red',6,0)]);s.quiet=99;assert.equal(move(s,'blue-cat',0,7).winner,null);assert.equal(move(s,'blue-cat',0,7).status,'finished');s.quiet=0;const next=move(s,'blue-cat',0,7);s.positions[positionKey(next)]=2;assert.equal(move(s,'blue-cat',0,7).reason,'Троекратное повторение позиции');});
 test('capture resets quiet counter; player changes',()=>{const s=game([p('wolf','blue',0,8),p('dog','red',0,7),p('cat','red',6,0)]);s.quiet=99;const next=move(s,'blue-wolf',0,7);assert.equal(next.quiet,0);assert.equal(next.currentPlayer,'red');assert.equal(next.status,'playing');});
+
 
 
 
