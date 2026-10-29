@@ -67,7 +67,6 @@ h1 em { color: var(--red); }
   transition: background .15s;
 }
 .new-game:hover { background: var(--red); }
-.field-key { color: var(--muted-ink); }
 
 .player.red { color: var(--red); }
 .player.blue { color: var(--yellow); }
@@ -91,16 +90,14 @@ h1 em { color: var(--red); }
 }
 .player.facing-away { transform: rotate(180deg); }
 .player > b { font-size: 12px; }
-.player .captured {
-  margin-left: 0;
-  font-size: 12px;
-  letter-spacing: 0;
-  max-width: 35%;
-  line-height: 1.4;
-}
-.player .captured:empty { display: none; }
+.player-center { display: flex; flex: 1; align-items: center; justify-content: center; min-width: 0; }
+.trophies { --trophy-size: var(--trophy-diameter, 56px); --trophy-overlap: calc(var(--trophy-size) - 28px); display: flex; align-items: center; height: 28px; transform: translateY(5px); isolation: isolate; }
+.trophies[hidden], .player-message[hidden] { display: none; }
+.trophies .piece.trophy-token { position: relative; inset: auto; display: grid; place-items: center; flex: 0 0 var(--trophy-size); width: var(--trophy-size); height: var(--trophy-size); margin: 0; box-shadow: -2px 0 4px #211a1670, 0 3px 4px #211a1650; }
+.trophies .piece.trophy-token + .trophy-token { margin-left: calc(-1 * var(--trophy-overlap)); }
+.trophy-token:nth-child(even) { transform: translateY(-4px); }
 .player-message {
-  margin-left: auto;
+  margin-left: 0;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: .7px;
@@ -288,9 +285,6 @@ html[data-water-motion=on] .river-drifter { animation-play-state: running; }
   color: var(--muted-ink);
   font-size: 9px;
 }
-.field-key > span { display: inline-flex; align-items: center; gap: 5px; }
-.legend-seal { display: inline-flex; width: 20px; height: 20px; color: #443d31; }
-.legend-seal svg { width: 100%; height: 100%; }
 .coord { color: #7d6c51; font-size: 8px; }
 
 .piece {
@@ -433,7 +427,7 @@ dialog p, dialog li, dialog .close { color: var(--muted-ink); }
   .river-label span { -webkit-text-stroke-width: 4px; }
   .player { min-height: 47px; padding: 9px 11px; gap: 8px; }
   .player > b { font-size: 11px; }
-  .player .captured { font-size: 11px; max-width: 30%; }
+  .trophies { --trophy-overlap: calc(var(--trophy-size) - 18px); transform: translateY(7px); }
   .player.is-active .player-message { font-size: 14px; }
   .player-message { font-size: 9px; }
   .board-wrap::before, .board-wrap::after { left: 8px; right: 8px; height: 3px; }
@@ -472,8 +466,6 @@ dialog p, dialog li, dialog .close { color: var(--muted-ink); }
 .terrain-guide-icon svg { display: block; width: 32px; height: 32px; }
 .river-guide-water { fill: #cbd3c3; }
 .river-guide-waves { fill: none; stroke: #5c7060; stroke-width: 2; }
-.field-key button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 2px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--muted-ink); font-size: 10px; }
-.field-key button:hover { border-color: var(--red); color: var(--red); }
 .animal-open { position: absolute; top: 4px; right: 5px; color: var(--red); font-size: 10px; opacity: 0; }
 .animal-row:hover .animal-open, .animal-row:focus-visible .animal-open { opacity: 1; }
 dialog.animal-dialog { max-width: 800px; max-height: calc(100dvh - 32px); overflow-y: auto; }
@@ -533,4 +525,8 @@ dialog.animal-dialog { max-width: 800px; max-height: calc(100dvh - 32px); overfl
 @media (prefers-reduced-motion: reduce) {
   .piece, .new-game, .player { transition: none; }
   .player.is-active { animation: none; }
+}
+
+@media (max-width: 360px) {
+  .trophies { --trophy-overlap: calc(var(--trophy-size) - 12px); }
 }

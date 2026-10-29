@@ -3,6 +3,7 @@ import {terrainIcon,riverMarkup,setupWaterMotion} from './terrain-art.js';
 import {snapshotPieces,animatePieces} from './piece-motion.js';
 import {setupBoardView} from './board-view.js';
 import {terrainEntries,terrainGuideIcon,terrainGuideMarkup} from './terrain-guide.js';
+import {setupMusic} from './music.js';
 document.documentElement.dataset.boardTheme||='classic';
 const $=id=>document.getElementById(id),names={blue:'Жёлтые',red:'Красные'},key='jungle-chess-v1';
 let state=initial(),selected=null,flipped=false,undo=[];
@@ -17,6 +18,19 @@ function animalPortrait(animal,large=false){
   const source=original.replace('.png',large?'-768.webp':'-128.webp');
   const retina=large?'':` srcset="${source} 1x, ${original.replace('.png','-256.webp')} 2x"`;
   return `<img class="piece-art piece-art-${animal}" src="${source}"${retina} width="${large?768:128}" height="${large?768:128}" alt="" draggable="false">`;
+}
+function pieceFace(animal,away=false,rank=null){
+  return `<span class="piece-face ${away?'facing-away':''}">${animalPortrait(animal)}${rank===null?'':`<small>${rank}</small>`}</span>`;
+}
+function sizeTrophies(){
+  const original=$('board').querySelector('.piece')?.offsetWidth;
+  if(!original)return;
+  for(const owner of ['red','blue']){
+    const player=$(owner+'-player');
+    // On narrow phones the board token itself can be smaller than the banner.
+    const minimum=Math.min(player.offsetHeight,original);
+    player.style.setProperty('--trophy-diameter',`${Math.min(original,Math.max(minimum,56))}px`);
+  }
 }
 function render(){
   const moves=selected?legalMoves(state,selected):[];
@@ -43,21 +57,24 @@ function render(){
     const seal=terrainIcon(t.type);
     const away=(t.owner==='red')!==flipped;
     if(trapped)cell.setAttribute('aria-label',cell.getAttribute('aria-label')+', в чужой ловушке, сила 0');
-    cell.innerHTML=`${seal?`<span class="terrain-icon ${away?'facing-away':''}" aria-hidden="true">${seal}</span>`:''}${(x===0||y===8)?`<span class="coord">${coords(x,y)}</span>`:''}${p?`<span class="piece ${p.owner} ${trapped?'is-trapped':''}" data-piece-id="${p.id}" aria-hidden="true"><span class="piece-face ${(p.owner==='red')!==flipped?'facing-away':''}">${animalPortrait(p.animal)}<small>${trapped?0:animals[p.animal].rank}</small></span></span>`:''}`;
+    cell.innerHTML=`${seal?`<span class="terrain-icon ${away?'facing-away':''}" aria-hidden="true">${seal}</span>`:''}${(x===0||y===8)?`<span class="coord">${coords(x,y)}</span>`:''}${p?`<span class="piece ${p.owner} ${trapped?'is-trapped':''}" data-piece-id="${p.id}" aria-hidden="true">${pieceFace(p.animal,(p.owner==='red')!==flipped,trapped?0:animals[p.animal].rank)}</span>`:''}`;
     cell.onclick=()=>clickCell(p,x,y);
     board.append(cell);
   }
   board.insertAdjacentHTML('beforeend',riverMarkup());
 for(const owner of ['red','blue']){
   const player=$(owner+'-player');
-  const captured=Object.keys(animals).filter(a=>!state.pieces.some(p=>p.owner===owner&&p.animal===a));
+  const opponent=other(owner);
+  const missing=Object.keys(animals).filter(a=>!state.pieces.some(p=>p.owner===opponent&&p.animal===a));
+  const captured=[...new Set([...state.history.filter(m=>m.owner===owner&&m.capture&&missing.includes(m.capture)).map(m=>m.capture),...missing])];
   const active=state.currentPlayer===owner&&state.status==='playing';
+  const showTrophies=captured.length>0;
   const message=state.status==='finished'?(state.winner?(state.winner===owner?'ПОБЕДА':'ПОРАЖЕНИЕ'):'НИЧЬЯ'):(active?'ВАШ ХОД':'ЖДИТЕ ХОДА');
   player.classList.toggle('is-active',active);
   player.classList.toggle('facing-away',(owner==='red')!==flipped);
   player.setAttribute('role','group');
   player.setAttribute('aria-label',`${names[owner]}: ${message.toLowerCase()}`);
-  player.innerHTML=`<span class="player-dot" aria-hidden="true"></span><b>${names[owner]}</b><span class="captured" aria-label="Потерянные фигуры">${captured.map(a=>animals[a].emoji).join('')}</span><strong class="player-message">${message}</strong>`;
+  player.innerHTML=`<span class="player-dot" aria-hidden="true"></span><b>${names[owner]}</b><span class="player-center"><span class="trophies" role="list" aria-label="Захвачено: ${captured.map(a=>animals[a].name).join(', ')}" ${showTrophies?'':'hidden'}>${captured.map(a=>`<span class="piece trophy-token ${opponent}" role="listitem" data-trophy-id="${opponent}-${a}" data-facing-away="${(owner==='red')!==flipped}" aria-label="${names[opponent]}: ${animals[a].name}" title="Захвачено: ${names[opponent].toLowerCase()}, ${animals[a].name.toLowerCase()}">${pieceFace(a)}</span>`).join('')}</span></span><strong class="player-message">${message}</strong>`;
 }
 const game=document.querySelector('.game');
 game.dataset.activePlayer=state.status==='playing'?state.currentPlayer:'none';
@@ -66,7 +83,7 @@ game.insertBefore($(flipped?'blue-player':'red-player'),game.firstChild);
 game.insertBefore($(flipped?'red-player':'blue-player'),game.querySelector('.game-controls')||$('hint'));
 $('turn').className='turn '+state.currentPlayer;$('turn').innerHTML=`<div class="turn-orb">${state.status==='finished'?'✦':'↗'}</div><div><b>${state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):'Ходят '+names[state.currentPlayer].toLowerCase()}</b><small>${state.status==='finished'?state.reason:`Ход ${Math.floor(state.history.length/2)+1} · ${selected?animals[state.pieces.find(p=>p.id===selected).animal].name:'Выберите свою фигуру'}`}</small></div>`;
 $('hint').textContent=state.status==='finished'?state.reason:selected?`${animals[state.pieces.find(p=>p.id===selected).animal].name}: ${moves.length?'выберите подсвеченную клетку':'нет доступных ходов — выберите другую фигуру'}`:`Нажмите на ${state.currentPlayer==='blue'?'жёлтую':'красную'} фигуру, чтобы увидеть доступные ходы`;
-$('count').textContent=state.history.length;$('history').innerHTML=state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>';$('undo').disabled=!undo.length;$('resign').disabled=state.status!=='playing';save();}
+$('count').textContent=state.history.length;$('history').innerHTML=state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>';$('undo').disabled=!undo.length;$('resign').disabled=state.status!=='playing';sizeTrophies();save();}
 async function transition(update,options={}){
   if(animating)return;
   const board=$('board');
@@ -145,4 +162,7 @@ document.addEventListener('click',event=>{const button=event.target.closest('but
 render();
 setupWaterMotion();
 setupBoardView();
-document.querySelector('.field-key').innerHTML=Object.entries(terrainEntries).map(([id,entry])=>`<button type="button" data-terrain="${id}" aria-haspopup="dialog" aria-label="${entry.name}: открыть описание"><span class="legend-seal" aria-hidden="true">${terrainGuideIcon(id)}</span>${entry.name}</button>`).join('');
+setupMusic();
+
+const trophySizing=new ResizeObserver(sizeTrophies);
+for(const id of ['board','red-player','blue-player'])trophySizing.observe($(id));

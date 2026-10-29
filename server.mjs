@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {resolve,extname,relative,isAbsolute} from 'node:path';
 
 const root=resolve(process.argv.includes('--dist')?'dist':'public');
-const types={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'};
+const types={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.mp3':'audio/mpeg'};
 
 http.createServer(async(req,res)=>{
   try{

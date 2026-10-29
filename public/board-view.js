@@ -1,11 +1,9 @@
 export function setupBoardView() {
   const root = document.documentElement;
   const game = document.querySelector('.game');
-  const expand = document.getElementById('expand-board');
   let previousScroll = 0;
   let ownsFullscreen = false;
   let expanded = false;
-  let returnFocus = expand;
 
   const panel = document.createElement('nav');
   panel.className = 'game-controls';
@@ -17,11 +15,12 @@ export function setupBoardView() {
     <button type="button" data-action="flip" aria-label="Повернуть поле"><span aria-hidden="true">↻</span><small>Повернуть</small></button>
     <button type="button" data-action="rules" aria-label="Как играть"><span aria-hidden="true">?</span><small>Правила</small></button>
     <button type="button" data-action="resign" aria-label="Сдаться"><span aria-hidden="true">⚑</span><small>Сдаться</small></button>
+    <button type="button" class="panel-music" data-music-toggle aria-label="Спокойная музыка" aria-pressed="false" title="Спокойная музыка"><span aria-hidden="true">♫</span><small>Музыка</small></button>
     <button type="button" class="collapse-board" aria-label="Развернуть поле на весь экран" aria-expanded="false"><span aria-hidden="true">⛶</span><small>Развернуть</small></button>`;
   game.insertBefore(panel, document.getElementById('hint'));
   const toggle = panel.querySelector('.collapse-board');
+  let returnFocus = toggle;
   const syncView = () => {
-    expand.setAttribute('aria-expanded', String(expanded));
     toggle.setAttribute('aria-expanded', String(expanded));
     toggle.setAttribute('aria-label', expanded ? 'Свернуть поле' : 'Развернуть поле на весь экран');
     toggle.querySelector('small').textContent = expanded ? 'Свернуть' : 'Развернуть';
@@ -76,7 +75,6 @@ export function setupBoardView() {
       } catch {}
     }
   };
-  expand.addEventListener('click', () => enter(expand));
   toggle.addEventListener('click', () => expanded ? collapse() : enter(toggle));
   document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement && ownsFullscreen) {
