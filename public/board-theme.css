@@ -27,11 +27,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
   height: 43px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--red);
+  border: 1.5px solid var(--red);
   border-radius: 2px;
   color: var(--red);
   font-family: 'Noto Serif CJK SC', 'Songti SC', SimSun, serif;
   font-size: 28px;
+  -webkit-text-stroke: .35px currentColor;
   letter-spacing: 0;
   line-height: 1;
   transform: rotate(-3deg);
@@ -171,6 +172,14 @@ h1 em { color: var(--red); }
   color: #61766a;
 }
 .cell.water::before { content: none; }
+.cell.bridge-shadow::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -5px;
+  width: 5px;
+  background: linear-gradient(90deg, #26271f00, #26271fa6);
+  pointer-events: none;
+}
 .cell.trap, .cell.den { background: var(--board-paper); }
 .terrain-icon,
 .den .terrain-icon,
@@ -223,11 +232,35 @@ h1 em { color: var(--red); }
   background-color: #cbd3c3;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='12' viewBox='0 0 48 12'%3E%3Cpath d='M0 6Q12 0 24 6T48 6' fill='none' stroke='%235c7060' stroke-opacity='.58' stroke-width='1.1'/%3E%3C/svg%3E");
   background-size: 48px 12px;
-  animation: river-current 18s linear infinite paused;
+  animation: river-current 8s linear infinite paused;
   animation-delay: var(--river-phase, 0s);
 }
 html[data-water-motion=on] .river-art { animation-play-state: running; }
-.river-right.river-art { animation-direction: reverse; }
+.river-life {
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  top: calc(100% / 3);
+  width: 100%;
+  height: calc(100% / 3);
+  overflow: hidden;
+  pointer-events: none;
+  fill: none;
+  stroke: #6d816f;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.river-drifter {
+  transform-box: view-box;
+  animation: river-drift 120s linear infinite paused;
+  animation-delay: calc(var(--river-phase, 0s) + var(--drift-offset, 0s));
+}
+html[data-water-motion=on] .river-drifter { animation-play-state: running; }
+@keyframes river-drift {
+  from { transform: translateX(-6%); }
+  to { transform: translateX(106%); }
+}
 .river-label {
   z-index: 1;
   display: flex;
@@ -378,8 +411,12 @@ dialog {
   color: var(--ink);
   box-shadow: 0 20px 100px #392c2340;
 }
+dialog.facing-away { transform: rotate(180deg); }
 dialog::backdrop { background: #302b256b; }
 dialog p, dialog li, dialog .close { color: var(--muted-ink); }
+.rules-reference { padding-top: 14px; border-top: 1px solid var(--line); }
+.rules-reference a { color: var(--red); text-underline-offset: 3px; }
+.rules-reference small { display: block; margin-top: 9px; font-size: 11px; line-height: 1.7; }
 .dialog-actions button {
   border-color: #d3c3a7;
   background: #eee4d2;
@@ -402,6 +439,95 @@ dialog p, dialog li, dialog .close { color: var(--muted-ink); }
   .board-wrap::before, .board-wrap::after { left: 8px; right: 8px; height: 3px; }
   .board-wrap::before { top: 2px; }
   .board-wrap::after { bottom: 2px; }
+}
+
+.animal-row {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+.animal-row:hover, .animal-row:focus-visible {
+  border-color: var(--red);
+  background: #dfb44618;
+  box-shadow: inset 0 0 0 1px #dfb44655;
+}
+.animal-row .emoji { flex-shrink: 0; }
+.animal-name { min-width: 0; }
+.field-guide { min-width: 0; }
+.field-guide .aside-title { display: flex; }
+#animals { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.field-guide .animal-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; min-height: 64px; padding: 12px 14px; font-size: 12px; }
+.field-guide .animal-name { overflow: visible; white-space: normal; }
+.field-guide .animal-name small { display: block; margin-top: 4px; font-size: 8px; line-height: 1.4; }
+.field-guide .animal-row > b { margin-left: 0; }
+.field-guide .animal-row .emoji { width: 32px; }
+.terrain-guide { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.terrain-guide-icon svg { display: block; width: 32px; height: 32px; }
+.river-guide-water { fill: #cbd3c3; }
+.river-guide-waves { fill: none; stroke: #5c7060; stroke-width: 2; }
+.field-key button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 2px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--muted-ink); font-size: 10px; }
+.field-key button:hover { border-color: var(--red); color: var(--red); }
+.animal-open { position: absolute; top: 4px; right: 5px; color: var(--red); font-size: 10px; opacity: 0; }
+.animal-row:hover .animal-open, .animal-row:focus-visible .animal-open { opacity: 1; }
+dialog.animal-dialog { max-width: 800px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.animal-card-top { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 28px; }
+.animal-portrait { width: 100%; padding: 12px; border-radius: 5px; background: radial-gradient(ellipse, #dfb44626, transparent 70%); }
+.animal-portrait .piece-art { display: block; width: 100%; height: 320px; object-fit: contain; }
+.animal-description .eyebrow { display: block; margin: 8px 0 14px; font-size: 9px; line-height: 1.6; }
+.animal-card h2 { margin-bottom: 14px; }
+.animal-card h3 { margin: 20px 0 8px; font-size: 13px; font-weight: 600; }
+.animal-card p { margin: 0 0 14px; }
+.animal-card-bottom { margin-top: 22px; border-top: 1px solid var(--line); }
+.animal-history { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.animal-history h3 { margin-top: 0; }
+.animal-history a { color: var(--red); font-size: 12px; text-underline-offset: 3px; }
+.animal-museum { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.museum-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 20px 0 14px; }
+.museum-gallery figure { margin: 0; min-width: 0; }
+.museum-gallery img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: contain; border-radius: 4px; background: #ded8cf; }
+.museum-gallery a, .museum-license { color: var(--red); text-underline-offset: 3px; }
+.museum-gallery figcaption { padding-top: 10px; font-size: 12px; line-height: 1.6; }
+.museum-gallery figcaption span, .museum-gallery figcaption small { display: block; color: var(--muted-ink); }
+.museum-gallery figcaption small { margin-top: 4px; font-size: 10px; }
+.museum-license { font-size: 11px; }
+.terrain-card-icon { display: grid; place-items: center; min-height: 280px; }
+.terrain-card-icon svg { width: min(100%, 220px); height: auto; }
+.terrain-card-icon .seal-writing { font-size: 29px; }
+.terrain-card-icon .trap-writing { font-size: 34px; }
+.terrain-artwork { margin: 0; }
+.terrain-artwork img { display: block; width: 100%; height: auto; border-radius: 4px; }
+.terrain-artwork figcaption { margin-top: 10px; font-size: 10px; line-height: 1.6; }
+.terrain-artwork figcaption span { display: block; color: var(--muted-ink); }
+.terrain-artwork a { color: var(--red); text-underline-offset: 3px; }
+.river-quote { margin: 16px 0; padding-left: 16px; border-left: 2px solid var(--yellow); }
+.river-quote > span { color: var(--red); font-family: KaiTi, STKaiti, serif; font-size: 30px; letter-spacing: 6px; }
+.river-quote p { margin: 8px 0; }
+.animal-history .terrain-extra-source, .animal-history .terrain-art-note { margin-top: 14px; }
+@media (max-width: 1050px) {
+  aside { grid-template-columns: 1fr; }
+  .field-guide { grid-column: 1 / -1; }
+  #animals { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .terrain-guide { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+}
+@media (max-width: 600px) {
+  .animal-row { padding: 12px 6px; gap: 4px; }
+  .animal-row .animal-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .animal-row > b { flex-shrink: 0; }
+  dialog.animal-dialog { padding: 28px 20px 20px; }
+  .animal-card-top { display: block; }
+  .animal-portrait { padding: 0; margin-bottom: 20px; }
+  .animal-portrait .piece-art { height: auto; max-height: 42dvh; }
+  .museum-gallery { grid-template-columns: 1fr; }
+  #animals, .terrain-guide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .field-guide .animal-row { padding: 12px 10px; gap: 8px; }
+  .terrain-card-icon { min-height: 220px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -27,10 +27,28 @@ export function terrainIcon(type) {
 }
 
 export function riverMarkup() {
-  return ['left', 'right'].map(side => `
+  const water = ['left', 'right'].map(side => `
     <div class="river-art river-${side}" aria-hidden="true"></div>
     <div class="river-label river-${side}" aria-hidden="true"><span>小</span><span>河</span></div>
   `).join('');
+  const leaf = '<path fill="#cbd3c3" d="M-14 2Q-12-15 14-14Q19 8-3 13Q-10 12-14 2Z"/><path d="M-17 16L10-9 M-5 4L-7-5 M1-2L8 1"/>';
+  const fishSchool = count => [[0, 0], [-42, 24], [-42, -24], [-84, 48]]
+    .slice(0, count)
+    .map(([x, y]) => `<image href="/assets/river-fish.svg" x="${x - 24}" y="${y - 13}" width="48" height="26"/>`)
+    .join('');
+  const twig = '<path d="M-20 7L20-6 M-6 2L-14-7 M4-1L11 8"/>';
+  const drifters = [
+    [leaf, 54, -9, -24], [leaf, 153, -25, 31],
+    [leaf, 239, -43, -42], [leaf, 100, -57, 16],
+    [fishSchool(2), 205, -17, 0], [fishSchool(3), 75, -37, 0],
+    [fishSchool(4), 165, -57, 0], [twig, 123, -38, -12]
+  ].map(([shape, lane, delay, angle]) => `
+    <g class="river-drifter" style="--drift-offset:${delay * 2}s">
+      <g transform="translate(0 ${lane}) rotate(${angle}) scale(.65)">${shape}</g>
+    </g>`).join('');
+  // One continuous layer: the opaque bridge cells hide a drifting object until
+  // that same object emerges in the next visible stretch of river.
+  return water + `<svg class="river-life" viewBox="0 0 700 300" preserveAspectRatio="none" aria-hidden="true" focusable="false">${drifters}</svg>`;
 }
 
 export function setupWaterMotion() {

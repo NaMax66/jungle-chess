@@ -1,0 +1,4 @@
+# Temporary: replace the root redirect with the lobby when more modes are ready.
+/ /local/ 302
+/index.html /local/ 302
+/local /local/ 302
