@@ -8,6 +8,10 @@ let animating=false;
 try{const data=JSON.parse(localStorage.getItem(key));if(data?.version===1&&data.state?.pieces&&data.state.positions){state=data.state;flipped=!!data.flipped;undo=data.undo||[];}}catch{}
 function save(){try{localStorage.setItem(key,JSON.stringify({version:1,state,flipped,undo}));}catch{$('saved').textContent='Не удалось сохранить партию в этом браузере';}}
 const coords=(x,y)=>'abcdefg'[x]+(9-y);
+const animalImages={tiger:'assets/tiger-head-v1.png',rat:'assets/rat-v1.png',cat:'assets/cat-head-v1.png',dog:'assets/dog-head-v1.png',elephant:'assets/elephant-head-v1.png',wolf:'assets/wolf-head-v1.png',leopard:'assets/leopard-head-v1.png',lion:'assets/lion-head-v1.png'};
+function animalPortrait(animal){
+  return animalImages[animal]?`<img class="piece-art piece-art-${animal}" src="${animalImages[animal]}" alt="" draggable="false">`:`<span>${animals[animal].emoji}</span>`;
+}
 function render(){
   const moves=selected?legalMoves(state,selected):[];
   const last=state.history.at(-1);
@@ -31,7 +35,7 @@ function render(){
     const seal=terrainIcon(t.type);
     const away=(t.owner==='red')!==flipped;
     if(trapped)cell.setAttribute('aria-label',cell.getAttribute('aria-label')+', в чужой ловушке, сила 0');
-    cell.innerHTML=`${seal?`<span class="terrain-icon ${away?'facing-away':''}" aria-hidden="true">${seal}</span>`:''}${(x===0||y===8)?`<span class="coord">${coords(x,y)}</span>`:''}${p?`<span class="piece ${p.owner} ${trapped?'is-trapped':''}" data-piece-id="${p.id}" aria-hidden="true"><span class="piece-face ${(p.owner==='red')!==flipped?'facing-away':''}"><span>${animals[p.animal].emoji}</span><small>${trapped?0:animals[p.animal].rank}</small></span></span>`:''}`;
+    cell.innerHTML=`${seal?`<span class="terrain-icon ${away?'facing-away':''}" aria-hidden="true">${seal}</span>`:''}${(x===0||y===8)?`<span class="coord">${coords(x,y)}</span>`:''}${p?`<span class="piece ${p.owner} ${trapped?'is-trapped':''}" data-piece-id="${p.id}" aria-hidden="true"><span class="piece-face ${(p.owner==='red')!==flipped?'facing-away':''}">${animalPortrait(p.animal)}<small>${trapped?0:animals[p.animal].rank}</small></span></span>`:''}`;
     cell.onclick=()=>clickCell(p,x,y);
     board.append(cell);
   }
@@ -51,7 +55,7 @@ const game=document.querySelector('.game');
 game.dataset.activePlayer=state.status==='playing'?state.currentPlayer:'none';
 game.dataset.turnEdge=state.status==='playing'?(state.currentPlayer===(flipped?'blue':'red')?'top':'bottom'):'none';
 game.insertBefore($(flipped?'blue-player':'red-player'),game.firstChild);
-game.insertBefore($(flipped?'red-player':'blue-player'),$('hint'));
+game.insertBefore($(flipped?'red-player':'blue-player'),game.querySelector('.game-controls')||$('hint'));
 $('turn').className='turn '+state.currentPlayer;$('turn').innerHTML=`<div class="turn-orb">${state.status==='finished'?'✦':'↗'}</div><div><b>${state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):'Ходят '+names[state.currentPlayer].toLowerCase()}</b><small>${state.status==='finished'?state.reason:`Ход ${Math.floor(state.history.length/2)+1} · ${selected?animals[state.pieces.find(p=>p.id===selected).animal].name:'Выберите свою фигуру'}`}</small></div>`;
 $('hint').textContent=state.status==='finished'?state.reason:selected?`${animals[state.pieces.find(p=>p.id===selected).animal].name}: ${moves.length?'выберите подсвеченную клетку':'нет доступных ходов — выберите другую фигуру'}`:`Нажмите на ${state.currentPlayer==='blue'?'жёлтую':'красную'} фигуру, чтобы увидеть доступные ходы`;
 $('count').textContent=state.history.length;$('history').innerHTML=state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>';$('undo').disabled=!undo.length;$('resign').disabled=state.status!=='playing';save();}
@@ -101,7 +105,7 @@ function newGame(){state=initial();selected=null;undo=[];render();}
 function showResult(){modal(`<div class="win-emoji">${state.winner?'🏆':'🤝'}</div><h2>${state.winner?'Победили '+names[state.winner].toLowerCase()+'!':'Ничья'}</h2><p>${state.reason}. Сыграем ещё одну?</p><div class="dialog-actions"><button id="again" class="primary">Новая партия</button><button id="look">Посмотреть поле</button></div>`);$('again').onclick=()=>{$('dialog').close();newGame();};$('look').onclick=()=>$('dialog').close();}
 $('new').onclick=()=>state.history.length&&state.status==='playing'?confirmAction('Новая партия','Текущая партия будет завершена. Жёлтые снова ходят первыми.',newGame):newGame();$('undo').onclick=async()=>{if(!animating&&undo.length){await transition(()=>{state=undo.pop();selected=null;});}};$('flip').onclick=()=>{flipped=!flipped;render();};$('resign').onclick=()=>confirmAction('Сдаться',names[state.currentPlayer]+' уступят победу сопернику.',()=>{undo.push(structuredClone(state));state={...state,status:'finished',winner:other(state.currentPlayer),reason:names[state.currentPlayer]+' сдались'};selected=null;render();showResult();});$('close').onclick=()=>$('dialog').close();$('dialog').addEventListener('click',e=>{if(e.target===$('dialog')&&(e.offsetX<0||e.offsetY<0||e.offsetX>$('dialog').clientWidth||e.offsetY>$('dialog').clientHeight))$('dialog').close();});
 $('rules').onclick=()=>modal(`<div class="eyebrow">ПРАВИЛА НАШЕЙ ВЕРСИИ</div><h2>Добраться до логова</h2><p>Играйте вдвоём, передавая устройство. Первыми ходят жёлтые. Нажмите на животное, затем на подсвеченную клетку.</p><ul><li><b>Ход:</b> одна клетка по вертикали или горизонтали. Свои фигуры и своё логово занимать нельзя.</li><li><b>Захват:</b> сильный съедает слабого или равного. Сила указана на фигуре. Волк сильнее собаки.</li><li><b>Слон и крыса</b> могут съесть друг друга. Только крыса плавает и атакует через берег в обе стороны, включая другую крысу.</li><li><b>Лев и тигр</b> прыгают через реку вдоль и поперёк. Любая крыса на пути блокирует прыжок.</li><li><b>Ловушка:</b> в чужой ловушке сила становится 0. Эффект ловушки важнее особого захвата слона крысой. После выхода сила возвращается.</li><li><b>Победа:</b> войдите в чужое логово, захватите все фигуры или лишите соперника ходов.</li><li><b>Ничья:</b> позиция повторилась трижды с той же очередью хода или сделано 100 полуходов без захвата.</li></ul><p>Партия сохраняется автоматически в этом браузере. Отменять ходы можно по согласию обоих игроков.</p>`);
-$('animals').innerHTML=Object.entries(animals).reverse().map(([id,a])=>`<div class="animal-row"><span class="emoji">${a.emoji}</span><span>${a.name}${['lion','tiger','rat'].includes(id)?`<small>${id==='rat'?'ПЛАВАЕТ':'ПРЫГАЕТ ЧЕРЕЗ РЕКУ'}</small>`:''}</span><b>${a.rank}</b></div>`).join('');render();
+$('animals').innerHTML=Object.entries(animals).reverse().map(([id,a])=>`<div class="animal-row"><span class="emoji">${animalPortrait(id)}</span><span>${a.name}${['lion','tiger','rat'].includes(id)?`<small>${id==='rat'?'ПЛАВАЕТ':'ПРЫГАЕТ ЧЕРЕЗ РЕКУ'}</small>`:''}</span><b>${a.rank}</b></div>`).join('');render();
 setupWaterMotion();
 setupBoardView();
 document.querySelector('.field-key').innerHTML=`<span>≈ Река</span><span><span class="legend-seal" aria-hidden="true">${terrainIcon('trap')}</span>Ловушка</span><span><span class="legend-seal" aria-hidden="true">${terrainIcon('den')}</span>Логово</span>`;

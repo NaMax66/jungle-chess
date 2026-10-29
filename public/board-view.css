@@ -12,7 +12,18 @@
 }
 .expand-board:hover { border-color: var(--ink); }
 .expand-board > span:first-child { font-size: 20px; line-height: 1; }
-.game-controls { display: none; }
+.intro .actions, .intro > .new-game, aside > .resign { display: none; }
+.game-controls {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  margin: 10px 0;
+  padding: 6px;
+  border: 1px solid #d4c6ad;
+  border-radius: 5px;
+  background: #eee5d4;
+}
+:root:not(.board-expanded) .expanded-status { display: none; }
 
 .board-expanded body { overflow: hidden; }
 .board-expanded body > header,
@@ -62,6 +73,7 @@
   flex-direction: column;
   gap: 5px;
   padding: 9px;
+  margin: 0;
   border: 1px solid #d4c6ad;
   border-radius: 5px;
   background: #eee5d4;
@@ -81,9 +93,12 @@
   color: var(--ink);
 }
 .game-controls button:hover:not(:disabled) { border-color: #cbbc9e; background: #f8f0e1; }
+.game-controls button[data-action=new] { background: var(--ink); color: #fff7e6; }
+.game-controls button[data-action=new]:hover:not(:disabled) { background: var(--red); color: #fff7e6; }
 .game-controls button > span { font-size: 23px; line-height: 1; }
 .game-controls button small { font-size: 10px; }
-.game-controls .collapse-board { border-top: 1px solid #d4c6ad; }
+.game-controls .collapse-board { border-left: 1px solid #d4c6ad; }
+.board-expanded .game-controls .collapse-board { border-left: 0; border-top: 1px solid #d4c6ad; }
 .expanded-status {
   padding: 7px 2px 11px;
   border-bottom: 1px solid #d4c6ad;
@@ -123,7 +138,7 @@
   .game-controls button { flex: 1; min-height: 44px; padding: 3px 1px; }
   .game-controls button small { font-size: 8px; }
   .game-controls button > span { font-size: 20px; }
-  .game-controls .collapse-board { border-top: 0; border-left: 1px solid #d4c6ad; }
+  .board-expanded .game-controls .collapse-board { border-top: 0; border-left: 1px solid #d4c6ad; }
   .expanded-status { display: none; }
 }
 
@@ -142,4 +157,20 @@
   .game-controls button > span { font-size: 18px; }
   .game-controls button small { font-size: 9px; }
   .expanded-status { padding: 3px 1px 6px; font-size: 10px; }
+}
+
+/* Phones: remove page gutters, while preserving the board's wooden frame. */
+@media (max-width: 600px), (max-width: 1000px) and (max-height: 500px) and (orientation: landscape) {
+  main { padding-left: 0; padding-right: 0; }
+  .game { max-width: none; }
+  .board-expanded .game { padding-left: 0; padding-right: 0; }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .turn { margin-left: 4%; margin-right: 4%; }
+  .board-expanded .game {
+    --expanded-board-width: min(100vw, calc((100dvh - 156px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 7 / 9));
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
