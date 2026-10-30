@@ -10,6 +10,7 @@ import {baseline,levels,validateWeights} from './bot-search.js';
 import {BotClient,loadWeights} from './bot-client.js';
 import {OnlineClient} from './online-client.js';
 import {gameRecord,readArchive,storeRecord,downloadRecord} from './game-records.js';
+import {getBoardTheme} from './themes/index.js';
 document.documentElement.dataset.boardTheme||='classic';
 const $=id=>document.getElementById(id),names={blue:'Жёлтые',red:'Красные'};
 const botMode=document.documentElement.dataset.mode==='bot';
@@ -73,13 +74,25 @@ async function runBot(){
 }
 const coords=(x,y)=>'abcdefg'[x]+(9-y);
 const animalImages={tiger:'/assets/tiger-head-v1.png',rat:'/assets/rat-v1.png',cat:'/assets/cat-head-v1.png',dog:'/assets/dog-head-v1.png',elephant:'/assets/elephant-head-v1.png',wolf:'/assets/wolf-head-v1.png',leopard:'/assets/leopard-head-v1.png',lion:'/assets/lion-head-v1.png'};
-function animalPortrait(animal,large=false){
-  const original=animalImages[animal];
-  if(!original)return `<span>${animals[animal].emoji}</span>`;
-  const source=original.replace('.png',large?'-768.webp':'-128.webp');
-  const retina=large?'':` srcset="${source} 1x, ${original.replace('.png','-256.webp')} 2x"`;
-  return `<img class="piece-art piece-art-${animal}" src="${source}"${retina} width="${large?768:128}" height="${large?768:128}" alt="" draggable="false">`;
+function animalArtSources(animal,large=false){
+  const original=getBoardTheme(document.documentElement.dataset.boardTheme)?.animals?.[animal]||animalImages[animal];
+  const source=original?.replace('.png',large?'-768.webp':'-128.webp');
+  return {source,srcset:large?'':`${source} 1x, ${original?.replace('.png','-256.webp')} 2x`};
 }
+function animalPortrait(animal,large=false){
+  const {source,srcset}=animalArtSources(animal,large);
+  if(!source)return `<span>${animals[animal].emoji}</span>`;
+  const retina=srcset?` srcset="${srcset}"`:'';
+  return `<img class="piece-art piece-art-${animal}" data-portrait="${animal}" data-portrait-large="${large}" src="${source}"${retina} width="${large?768:128}" height="${large?768:128}" alt="" draggable="false">`;
+}
+document.addEventListener('board-theme-change',()=>{
+  // Update the same image nodes, including trophies; no game render or save.
+  for(const image of document.querySelectorAll('img[data-portrait]')){
+    const {source,srcset}=animalArtSources(image.dataset.portrait,image.dataset.portraitLarge==='true');
+    patchAttribute(image,'src',source);
+    if(srcset)patchAttribute(image,'srcset',srcset);
+  }
+});
 function pieceFace(animal,away=false,rank=null){
   return `<span class="piece-face ${away?'facing-away':''}">${animalPortrait(animal)}${rank===null?'':`<small>${rank}</small>`}</span>`;
 }
@@ -272,7 +285,7 @@ function showTerrain(id){
 function confirmAction(title,text,action){modal(`<h2>${title}</h2><p>${text}</p><div class="dialog-actions"><button id="cancel">Продолжить игру</button><button id="confirm" class="primary">${title}</button></div>`);$('cancel').onclick=()=>$('dialog').close();$('confirm').onclick=()=>{$('dialog').close();action();};}
 function startGame(rulesId,newDifficulty){
   cancelBot();archiveCurrent(true);
-  if(!onlineMode)history.replaceState(null,'',`${location.pathname}?rules=${rulesId}${botMode?'&difficulty='+newDifficulty:''}`);
+  if(!onlineMode)history.replaceState(null,'',`${location.pathname}?rules=${rulesId}${botMode?'&difficulty='+newDifficulty:''}&theme=${document.documentElement.dataset.boardTheme}`);
   state=initial(rulesId);difficulty=newDifficulty;meta=freshMeta();weights=baseline;selected=null;undo=[];render();
   if(botMode)refreshWeights();
 }
@@ -314,7 +327,7 @@ $('animals').addEventListener('click',event=>{const button=event.target.closest(
 $('terrain-guide').innerHTML=Object.entries(terrainEntries).map(([id,entry])=>`<button type="button" class="animal-row terrain-row" data-terrain="${id}" aria-haspopup="dialog" aria-label="${entry.name}: открыть описание"><span class="emoji terrain-guide-icon" aria-hidden="true">${terrainGuideIcon(id)}</span><span class="animal-name">${entry.name}</span><span class="animal-open" aria-hidden="true">↗</span></button>`).join('');
 document.addEventListener('click',event=>{const button=event.target.closest('button[data-terrain]');if(button)showTerrain(button.dataset.terrain);});
 $('dialog').addEventListener('close',()=>{
-  if(!onlineMode)history.replaceState(null,'',`${location.pathname}?rules=${gameRules(state).id}${botMode?'&difficulty='+difficulty:''}`);
+  if(!onlineMode)history.replaceState(null,'',`${location.pathname}?rules=${gameRules(state).id}${botMode?'&difficulty='+difficulty:''}&theme=${document.documentElement.dataset.boardTheme}`);
   queueMicrotask(()=>runBot());
 });
 render();

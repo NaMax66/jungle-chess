@@ -1,0 +1,50 @@
+.theme-choice { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 11px; color: var(--muted-ink); }
+.theme-choice select { max-width: 150px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
+.theme-choice select:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+.terrain-winter, .winter-ice { display: none; }
+html[data-board-theme=winter] .terrain-classic { display: none; }
+html[data-board-theme=winter] .terrain-winter { display: inline; }
+html[data-board-theme=winter] { --ink: #293e4b; --muted-ink: #5e7483; --paper: #f1f6fa; --board-paper: #ecf2f6; --line: #cbd8e1; }
+html[data-board-theme=winter] body { background-image: radial-gradient(ellipse at 50% 10%, #fff9, transparent 70%), radial-gradient(#6c899b16 .7px, transparent .7px); background-size: auto, 5px 5px; }
+html[data-board-theme=winter] .board-wrap {
+  padding: 5.5% 8%;
+  border-color: #9badb9;
+  background: #e5edf5 url('/assets/winter-forest-v1.webp') center / 100% 100% no-repeat;
+  box-shadow: 0 3px 0 #aabac7, 0 12px 30px #344e6519;
+}
+html[data-board-theme=winter] #board { border-color: #566775; box-shadow: 0 0 0 3px #f6faffb3, 0 2px 9px #273e4b30; }
+html[data-board-theme=winter] .cell { border-color: #647786b3; background-image: radial-gradient(ellipse at 20% 30%, #fff 0, transparent 65%), radial-gradient(ellipse at 75% 85%, #b1c8dc55, transparent 60%); }
+html[data-board-theme=winter] .cell.shade { background-color: #e3edf4; }
+html[data-board-theme=winter] .cell.water { background: transparent; }
+html[data-board-theme=winter] .cell.bridge { background-color: #986d48; background-image: linear-gradient(#f5faff 0 8%, transparent 8% 92%, #e8f3ff 92%), repeating-linear-gradient(0deg, transparent 0 24%, #563e2e88 24% 26%), linear-gradient(90deg, #70492c33, #c3976155 45%, #6d4c3033); }
+html[data-board-theme=winter] .river-art { background-color: #a9d3e7; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='12'%3E%3Cpath d='M0 6Q12 0 24 6T48 6' fill='none' stroke='%234e92b2' stroke-opacity='.55'/%3E%3C/svg%3E"); }
+html[data-board-theme=winter] .river-life { opacity: .45; }
+html[data-board-theme=winter] .river-leaf { display: none; }
+html[data-board-theme=winter] .river-label { color: #396e8b; }
+html[data-board-theme=winter] .river-label span { -webkit-text-stroke-color: #eef8fd; text-shadow: 0 1px 0 #fff; }
+html[data-board-theme=winter] .winter-ice { display: block; position: absolute; top: calc(100% / 3); width: calc(100% * 2 / 7); height: calc(100% / 3); z-index: 0; pointer-events: none; fill: #f1faff; stroke: #78abc6; stroke-width: 1.2; }
+html[data-board-theme=winter] .ice-glint { fill: none; stroke: white; stroke-width: 2; }
+.winter-ice { overflow: hidden; }
+.winter-floe {
+  transform-box: view-box;
+  animation: winter-ice-current 28s linear infinite paused;
+  animation-delay: calc(var(--river-phase, 0s) + var(--ice-offset, 0s));
+}
+html[data-board-theme=winter][data-water-motion=on] .winter-floe { animation-play-state: running; }
+@keyframes winter-ice-current {
+  from { transform: translateX(-12%); }
+  to { transform: translateX(112%); }
+}
+html[data-board-theme=winter] .den-stone { fill: #cbdde8; stroke: #6e8a9e; }
+html[data-board-theme=winter] .den-heart { fill: #425e73; stroke: #9eb9cc; }
+html[data-board-theme=winter] .den-border { stroke: #7f9baf; }
+html[data-board-theme=winter] .den-highlight { stroke: #f4fbff; }
+html[data-board-theme=winter] .den-shadow { fill: #7e95a6; }
+html[data-board-theme=winter] .coord { color: #536e80; }
+html[data-board-theme=winter] .player:not(.is-active), html[data-board-theme=winter] .game-controls { background: #e3edf4; border-color: #bccdd9; }
+html[data-board-theme=winter] .game-controls button:hover:not(:disabled) { background: #f5faff; border-color: #a7bfce; }
+html[data-board-theme=winter] dialog { background: #f3f8fc; color: var(--ink); border-color: #b6cbd9; }
+html[data-board-theme=winter] .river-guide-water { fill: #a9d3e7; }
+html[data-board-theme=winter] .river-guide-waves { stroke: #4e92b2; }
+html[data-board-theme=winter].board-expanded .game > .board-wrap { padding: 5.5% 8%; }
+@media (max-width: 600px) { .theme-choice > span { display: none; } .theme-choice select { max-width: 125px; } }
