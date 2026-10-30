@@ -6,6 +6,28 @@
   "preview_urls": false,
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/rooms",
+      "/api/rooms/*"
+    ]
+  },
+  "main": "worker/index.js",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ROOMS",
+        "class_name": "GameRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "game-rooms-v1",
+      "new_sqlite_classes": [
+        "GameRoom"
+      ]
+    }
+  ]
 }

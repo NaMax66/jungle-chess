@@ -33,6 +33,7 @@ export function setupBoardView() {
     const status = panel.querySelector('.expanded-status');
     const player = game.dataset.activePlayer;
     status.textContent = player === 'red' ? (game.dataset.mode==='bot'?'Ход бота':'Ходят красные') : player === 'blue' ? 'Ходят жёлтые' : 'Партия завершена';
+    if(game.dataset.mode==='online')status.textContent=document.querySelector('#turn b')?.textContent||'Сетевая игра';
     status.dataset.player = player;
   };
   for (const button of mirrors) {

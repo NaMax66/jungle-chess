@@ -152,7 +152,7 @@ footer { flex-wrap: wrap; }
   .board-expanded .player > b,
   .board-expanded .player > .player-dot { display: none; }
   .board-expanded .player .player-message { margin: 0; font-size: 10px; }
-  .board-expanded .trophies { --trophy-overlap: calc(var(--trophy-size) - 12px); height: 20px; transform: translateY(4px); }
+  .board-expanded .trophies { --trophy-overlap: calc(var(--trophy-size) - 12px); height: 20px; --trophy-offset: 4px; }
   .board-expanded .game-controls { gap: 1px; padding: 5px; }
   .game-controls button { min-height: 39px; padding: 3px; }
   .game-controls button > span { font-size: 18px; }

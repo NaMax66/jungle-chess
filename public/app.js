@@ -8,10 +8,13 @@ import {patchHTML,patchText,patchAttribute,placeBefore} from './dom-patch.js';
 import {rulesets,resolveRules,gameRules,rankOf,specialRulesText,repetitionDescription} from './rulesets.js';
 import {baseline,levels,validateWeights} from './bot-search.js';
 import {BotClient,loadWeights} from './bot-client.js';
+import {OnlineClient} from './online-client.js';
 import {gameRecord,readArchive,storeRecord,downloadRecord} from './game-records.js';
 document.documentElement.dataset.boardTheme||='classic';
 const $=id=>document.getElementById(id),names={blue:'Жёлтые',red:'Красные'};
 const botMode=document.documentElement.dataset.mode==='bot';
+const onlineMode=document.documentElement.dataset.mode==='online';
+let online=null,onlineRoom=null,humanOwner=null,onlineStatus='Открываем комнату…',onlineUpdates=Promise.resolve();
 const key=botMode?'jungle-chess-bot-v1':'jungle-chess-v1';
 const query=new URLSearchParams(location.search);
 const requestedRules=rulesets[query.get('rules')]?query.get('rules'):'battle';
@@ -21,7 +24,7 @@ let state=initial(requestedRules),selected=null,flipped=false,undo=[],difficulty
 let animating=false,thinking=false,botError=false,botEpoch=0,loaded=false;
 const bot=botMode?new BotClient():null;
 try{
-  const data=JSON.parse(localStorage.getItem(key));
+  const data=onlineMode?null:JSON.parse(localStorage.getItem(key));
   if(data?.version===1&&data.state?.pieces&&data.state.positions){
     const rules=resolveRules(data.state.rules||'battle@1');
     state={...data.state,rules};flipped=!!data.flipped;undo=data.undo||[];
@@ -29,7 +32,7 @@ try{
     meta=data.meta?.id?data.meta:freshMeta();weights=validateWeights(data.weights||baseline,rules);loaded=true;
   }
 }catch{}
-function recordCurrent(){return gameRecord(state,{...meta,mode:botMode?'bot':'local',difficulty,weightsVersion:weights.version});}
+function recordCurrent(){return gameRecord(state,{...meta,mode:onlineMode?'online':botMode?'bot':'local',difficulty,weightsVersion:weights.version});}
 function archiveCurrent(abandoned=false){
   if(!state.history.length)return;
   const record=recordCurrent();
@@ -37,11 +40,12 @@ function archiveCurrent(abandoned=false){
   if(!storeRecord(record))$('saved').textContent='Не удалось сохранить архив. Можно экспортировать партию вручную.';
 }
 function save(){
+  if(onlineMode){if(state.status==='finished')archiveCurrent();return;}
   try{localStorage.setItem(key,JSON.stringify({version:1,state,flipped,undo,difficulty,meta,weights}));}
   catch{$('saved').textContent='Не удалось сохранить партию в этом браузере';}
   if(state.status==='finished')archiveCurrent();
 }
-const facingAway=owner=>!botMode&&((owner==='red')!==flipped);
+const facingAway=owner=>!botMode&&!onlineMode&&((owner==='red')!==flipped);
 function cancelBot(){botEpoch++;bot?.cancel();thinking=false;botError=false;}
 function refreshWeights(){
   const id=meta.id;
@@ -149,14 +153,14 @@ for(const owner of ['red','blue']){
   const opponent=other(owner);
   const missing=Object.keys(animals).filter(a=>!state.pieces.some(p=>p.owner===opponent&&p.animal===a));
   const captured=[...new Set([...state.history.filter(m=>m.owner===owner&&m.capture&&missing.includes(m.capture)).map(m=>m.capture),...missing])];
-  const active=state.currentPlayer===owner&&state.status==='playing';
+  const active=state.currentPlayer===owner&&state.status==='playing'&&(!onlineMode||!!onlineRoom?.joined.red);
   const showTrophies=captured.length>0;
-  const message=state.status==='finished'?(state.winner?(state.winner===owner?'ПОБЕДА':'ПОРАЖЕНИЕ'):'НИЧЬЯ'):(active?(botMode&&owner==='red'?(botError?'НУЖЕН ПОВТОР':thinking?'БОТ ДУМАЕТ':'ХОД БОТА'):'ВАШ ХОД'):'ЖДИТЕ ХОДА');
+  const message=state.status==='finished'?(state.winner?(state.winner===owner?'ПОБЕДА':'ПОРАЖЕНИЕ'):'НИЧЬЯ'):(onlineMode&&!onlineRoom?.joined.red?'ОЖИДАНИЕ':active?(onlineMode&&owner!==humanOwner?'ХОД СОПЕРНИКА':botMode&&owner==='red'?(botError?'НУЖЕН ПОВТОР':thinking?'БОТ ДУМАЕТ':'ХОД БОТА'):'ВАШ ХОД'):'ЖДИТЕ ХОДА');
   player.classList.toggle('is-active',active);
   player.classList.toggle('facing-away',facingAway(owner));
   patchAttribute(player,'role','group');
   patchAttribute(player,'aria-label',`${names[owner]}: ${message.toLowerCase()}`);
-  patchHTML(player,`<span class="player-dot" aria-hidden="true"></span><b>${names[owner]}${botMode&&owner==='red'?' · бот':''}</b><span class="player-center"><span class="trophies" role="list"></span></span><strong class="player-message"></strong>`);
+  patchHTML(player,`<span class="player-dot" aria-hidden="true"></span><b>${names[owner]}${onlineMode?(owner===humanOwner?' · вы':' · друг'):botMode&&owner==='red'?' · бот':''}</b><span class="player-center"><span class="trophies" role="list"></span></span><strong class="player-message"></strong>`);
   patchText(player.querySelector('.player-message'),message);
   const tray=player.querySelector('.trophies');
   if(tray.hidden===showTrophies)tray.hidden=!showTrophies;
@@ -179,8 +183,8 @@ for(const owner of ['red','blue']){
   for(const token of trophies.values())token.remove();
 }
 const game=document.querySelector('.game');
-patchAttribute(game,'data-mode',botMode?'bot':'local');
-patchAttribute(game,'data-active-player',state.status==='playing'?state.currentPlayer:'none');
+patchAttribute(game,'data-mode',onlineMode?'online':botMode?'bot':'local');
+patchAttribute(game,'data-active-player',state.status==='playing'&&(!onlineMode||onlineRoom?.joined.red)?state.currentPlayer:'none');
 patchAttribute(game,'data-turn-edge',state.status==='playing'?(state.currentPlayer===(flipped?'blue':'red')?'top':'bottom'):'none');
 placeBefore(game,$(flipped?'blue-player':'red-player'),game.firstChild);
 placeBefore(game,$(flipped?'red-player':'blue-player'),game.querySelector('.game-controls')||$('hint'));
@@ -189,7 +193,8 @@ $('hint').textContent=state.status==='finished'?state.reason:selected?`${animals
 if(botMode&&state.status==='playing'&&state.currentPlayer==='red')$('hint').textContent=botError?'Не удалось рассчитать ход. Повторите попытку или отмените свой ход.':'Бот обдумывает ход. Можно отменить свой ход или начать новую партию.';
 $('bot-retry').hidden=!botError;
 $('session-rules').textContent=`${gameRules(state).name} · версия ${gameRules(state).version}${botMode?' · '+levels[difficulty].name+' бот':''}`;
-$('count').textContent=state.history.length;patchHTML($('history'),state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>');$('undo').disabled=!undo.length;$('resign').disabled=state.status!=='playing';document.querySelectorAll('[data-animal]').forEach(button=>{patchText(button.querySelector('b'),rankOf(state,button.dataset.animal));});sizeTrophies();if(persist)save();}
+$('count').textContent=state.history.length;patchHTML($('history'),state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>');$('undo').disabled=onlineMode?(!onlineReady()||!!onlineRoom?.proposal||!state.history.some(m=>m.owner===humanOwner)):!undo.length;$('resign').disabled=state.status!=='playing'||(onlineMode&&!onlineReady());
+if(onlineMode){$('new').disabled=!onlineReady()||!!onlineRoom?.proposal;updateOnlineUI();}document.querySelectorAll('[data-animal]').forEach(button=>{patchText(button.querySelector('b'),rankOf(state,button.dataset.animal));});sizeTrophies();if(persist)save();}
 async function transition(update,options={}){
   if(animating)return;
   const board=$('board');
@@ -216,10 +221,11 @@ async function transition(update,options={}){
   }
 }
 async function clickCell(p,x,y){
-  if(animating||state.status!=='playing'||(botMode&&state.currentPlayer==='red'))return;
+  if(animating||state.status!=='playing'||(botMode&&state.currentPlayer==='red')||(onlineMode&&(!onlineReady()||onlineRoom?.proposal||state.currentPlayer!==humanOwner)))return;
   if(selected){
     const next=move(state,selected,x,y);
     if(next){
+      if(onlineMode){onlineAction({type:'move',id:selected,x,y});selected=null;render({persist:false});return;}
       const last=next.history.at(-1);
       const jump=Math.abs(last.from[0]-x)+Math.abs(last.from[1]-y)>1;
       await transition(()=>{undo.push(state);state=next;selected=null;},{jumpId:jump?last.id:null});
@@ -266,11 +272,12 @@ function showTerrain(id){
 function confirmAction(title,text,action){modal(`<h2>${title}</h2><p>${text}</p><div class="dialog-actions"><button id="cancel">Продолжить игру</button><button id="confirm" class="primary">${title}</button></div>`);$('cancel').onclick=()=>$('dialog').close();$('confirm').onclick=()=>{$('dialog').close();action();};}
 function startGame(rulesId,newDifficulty){
   cancelBot();archiveCurrent(true);
-  history.replaceState(null,'',`${location.pathname}?rules=${rulesId}${botMode?'&difficulty='+newDifficulty:''}`);
+  if(!onlineMode)history.replaceState(null,'',`${location.pathname}?rules=${rulesId}${botMode?'&difficulty='+newDifficulty:''}`);
   state=initial(rulesId);difficulty=newDifficulty;meta=freshMeta();weights=baseline;selected=null;undo=[];render();
   if(botMode)refreshWeights();
 }
 function newGame(preferredRules=gameRules(state).id,preferredDifficulty=difficulty){
+  if(onlineMode){confirmAction('Ещё партия','Предложить другу новую партию с теми же правилами?',()=>onlineAction({type:'rematch'}));return;}
   cancelBot();render();
   modal(`<h2>Новая партия</h2><p>Настройки действуют до конца партии. В новых партиях ничья по повторению наступает при пятом появлении одинаковой позиции. Текущая запись останется в локальном архиве.</p><form id="game-options" class="game-options"><label>Правила<select name="rules">${Object.values(rulesets).map(r=>`<option value="${r.id}" ${r.id===preferredRules?'selected':''}>${r.name}</option>`).join('')}</select></label>${botMode?`<label>Сложность<select name="difficulty">${Object.entries(levels).map(([id,l])=>`<option value="${id}" ${id===preferredDifficulty?'selected':''}>${l.name}</option>`).join('')}</select></label><p>Вы играете за жёлтых и ходите первыми. Сложный уровень дольше обдумывает ход.</p>`:''}<div class="dialog-actions"><button type="button" id="keep-game">Продолжить игру</button><button type="submit" class="primary">Начать партию</button></div></form>`);
   $('keep-game').onclick=()=>{$('dialog').close();runBot();};
@@ -282,12 +289,14 @@ function newGame(preferredRules=gameRules(state).id,preferredDifficulty=difficul
 function showResult(){modal(`<div class="win-emoji">${state.winner?'🏆':'🤝'}</div><h2>${state.winner?'Победили '+names[state.winner].toLowerCase()+'!':'Ничья'}</h2><p>${state.reason}. Сыграем ещё одну?</p><div class="dialog-actions"><button id="again" class="primary">Новая партия</button><button id="look">Посмотреть поле</button></div>`,state.winner);$('again').onclick=()=>{$('dialog').close();newGame();};$('look').onclick=()=>$('dialog').close();}
 $('new').onclick=()=>newGame();
 $('undo').onclick=async()=>{
+  if(onlineMode){onlineAction({type:'undo'});return;}
   if(!animating&&undo.length){cancelBot();await transition(()=>{state=undo.pop();selected=null;});runBot();}
 };
 $('flip').onclick=()=>{flipped=!flipped;render();};
 $('resign').onclick=()=>{
-  const owner=botMode?'blue':state.currentPlayer;
+  const owner=onlineMode?humanOwner:botMode?'blue':state.currentPlayer;
   confirmAction('Сдаться',names[owner]+' уступят победу сопернику.',()=>{
+    if(onlineMode){onlineAction({type:'resign'});return;}
     cancelBot();if(!botMode||state.currentPlayer==='blue')undo.push(structuredClone(state));state={...state,status:'finished',winner:other(owner),reason:names[owner]+' сдались'};selected=null;render();showResult();
   });
 };
@@ -295,17 +304,17 @@ $('bot-retry').onclick=()=>runBot();
 $('export-game').onclick=()=>downloadRecord(recordCurrent(),`battle-${meta.id}.json`);
 $('open-archive').onclick=()=>{
   const records=readArchive();
-  modal(`<h2>Сохранённые партии</h2><p>До 50 последних записей хранятся только в этом браузере. Экспорт сохранит ходы, правила, результат и версию бота.</p><div class="archive-list">${records.length?records.map((r,i)=>`<button type="button" data-record="${i}"><span>${new Date(r.createdAt).toLocaleDateString('ru-RU')} · ${r.mode==='bot'?'С ботом':'Вдвоём'} · ${r.moves.length} полуходов</span><small>${r.result.status==='abandoned'?'Не завершена':r.result.winner?names[r.result.winner]+' победили':'Ничья'} · Скачать JSON ↗</small></button>`).join(''):'<p>Здесь появятся завершённые партии и записи при начале новой игры.</p>'}</div>`);
+  modal(`<h2>Сохранённые партии</h2><p>До 50 последних записей хранятся только в этом браузере. Экспорт сохранит ходы, правила, результат и версию бота.</p><div class="archive-list">${records.length?records.map((r,i)=>`<button type="button" data-record="${i}"><span>${new Date(r.createdAt).toLocaleDateString('ru-RU')} · ${r.mode==='online'?'По сети':r.mode==='bot'?'С ботом':'Вдвоём'} · ${r.moves.length} полуходов</span><small>${r.result.status==='abandoned'?'Не завершена':r.result.winner?names[r.result.winner]+' победили':'Ничья'} · Скачать JSON ↗</small></button>`).join(''):'<p>Здесь появятся завершённые партии и записи при начале новой игры.</p>'}</div>`);
   $('dialog-content').querySelectorAll('[data-record]').forEach(button=>button.onclick=()=>downloadRecord(records[Number(button.dataset.record)],`battle-${records[Number(button.dataset.record)].id}.json`));
 };
 $('close').onclick=()=>$('dialog').close();$('dialog').addEventListener('click',e=>{if(e.target===$('dialog')&&(e.offsetX<0||e.offsetY<0||e.offsetX>$('dialog').clientWidth||e.offsetY>$('dialog').clientHeight))$('dialog').close();});
-$('rules').onclick=()=>modal(`<div class="eyebrow">${gameRules(state).name} · ВЕРСИЯ ${gameRules(state).version}</div><h2>Добраться до логова</h2><p>${botMode?'Вы играете за жёлтых против бота. Все фишки обращены к вам.':'Два игрока сидят друг напротив друга.'} Первыми ходят жёлтые. Нажмите на животное, затем на подсвеченную клетку.</p><ul><li><b>Ход:</b> одна клетка по вертикали или горизонтали. Свои фигуры и своё логово занимать нельзя.</li><li><b>Захват:</b> сильный берёт слабого или равного. Сила указана на фигуре.</li><li><b>Особенности выбранных правил:</b> ${specialRulesText(state)}</li><li><b>Вода:</b> плавает только крыса. Лев и тигр прыгают через реку; любая крыса на линии прыжка блокирует его.</li><li><b>Ловушка:</b> в чужой ловушке сила становится 0. После выхода возвращается.</li><li><b>Победа:</b> войдите в чужое логово, захватите всех зверей или лишите соперника ходов.</li><li><b>Ничья:</b> ${repetitionDescription(state).toLowerCase()} с той же стороной хода или 100 полуходов без захвата.</li></ul><p>Правила фиксируются на партию. ${botMode?'Отмена возвращает ваш ход вместе с ответом бота.':'Отменяйте ходы по согласию обоих игроков.'} Ходы сохраняются только в браузере.</p><p class="rules-reference"><a href="https://www.ymimports.com/pages/how-to-play-jungle" target="_blank" rel="noopener noreferrer">Редакция Yellow Mountain Imports ↗</a><small>Для обоих наборов у нас жёлтые начинают первыми; общие условия завершения и ничьей указаны выше.</small></p>`);
+$('rules').onclick=()=>modal(`<div class="eyebrow">${gameRules(state).name} · ВЕРСИЯ ${gameRules(state).version}</div><h2>Добраться до логова</h2><p>${onlineMode?'Два игрока подключены по ссылке. Каждый видит все фишки обращёнными к себе.':botMode?'Вы играете за жёлтых против бота. Все фишки обращены к вам.':'Два игрока сидят друг напротив друга.'} Первыми ходят жёлтые. Нажмите на животное, затем на подсвеченную клетку.</p><ul><li><b>Ход:</b> одна клетка по вертикали или горизонтали. Свои фигуры и своё логово занимать нельзя.</li><li><b>Захват:</b> сильный берёт слабого или равного. Сила указана на фигуре.</li><li><b>Особенности выбранных правил:</b> ${specialRulesText(state)}</li><li><b>Вода:</b> плавает только крыса. Лев и тигр прыгают через реку; любая крыса на линии прыжка блокирует его.</li><li><b>Ловушка:</b> в чужой ловушке сила становится 0. После выхода возвращается.</li><li><b>Победа:</b> войдите в чужое логово, захватите всех зверей или лишите соперника ходов.</li><li><b>Ничья:</b> ${repetitionDescription(state).toLowerCase()} с той же стороной хода или 100 полуходов без захвата.</li></ul><p>Правила фиксируются на партию. ${botMode?'Отмена возвращает ваш ход вместе с ответом бота.':'Отменяйте ходы по согласию обоих игроков.'} ${onlineMode?'Ходы хранятся на сервере комнаты. Отмена и новая партия — по согласию друга. Комната закрывается после 7 дней без действий.':'Ходы сохраняются только в браузере.'}</p><p class="rules-reference"><a href="https://www.ymimports.com/pages/how-to-play-jungle" target="_blank" rel="noopener noreferrer">Редакция Yellow Mountain Imports ↗</a><small>Для обоих наборов у нас жёлтые начинают первыми; общие условия завершения и ничьей указаны выше.</small></p>`);
 $('animals').innerHTML=Object.entries(animals).reverse().map(([id,a])=>`<button type="button" class="animal-row" data-animal="${id}" aria-haspopup="dialog" aria-label="${a.name}: открыть описание" title="${a.name} — особенности и возможности"><span class="emoji" aria-hidden="true">${animalPortrait(id)}</span><span class="animal-name">${a.name}${['lion','tiger','rat'].includes(id)?`<small>${id==='rat'?'ПЛАВАЕТ':'ПРЫГАЕТ ЧЕРЕЗ РЕКУ'}</small>`:''}</span><b>${a.rank}</b><span class="animal-open" aria-hidden="true">↗</span></button>`).join('');
 $('animals').addEventListener('click',event=>{const button=event.target.closest('button[data-animal]');if(button)showAnimal(button.dataset.animal);});
 $('terrain-guide').innerHTML=Object.entries(terrainEntries).map(([id,entry])=>`<button type="button" class="animal-row terrain-row" data-terrain="${id}" aria-haspopup="dialog" aria-label="${entry.name}: открыть описание"><span class="emoji terrain-guide-icon" aria-hidden="true">${terrainGuideIcon(id)}</span><span class="animal-name">${entry.name}</span><span class="animal-open" aria-hidden="true">↗</span></button>`).join('');
 document.addEventListener('click',event=>{const button=event.target.closest('button[data-terrain]');if(button)showTerrain(button.dataset.terrain);});
 $('dialog').addEventListener('close',()=>{
-  history.replaceState(null,'',`${location.pathname}?rules=${gameRules(state).id}${botMode?'&difficulty='+difficulty:''}`);
+  if(!onlineMode)history.replaceState(null,'',`${location.pathname}?rules=${gameRules(state).id}${botMode?'&difficulty='+difficulty:''}`);
   queueMicrotask(()=>runBot());
 });
 render();
@@ -320,3 +329,80 @@ if(loaded&&((query.has('rules')&&requestedRules!==gameRules(state).id)||(botMode
   newGame(requestedRules,requestedDifficulty);
 }else runBot();
 if(botMode&&!state.history.length)refreshWeights();
+
+function onlineReady(){return !!(online?.connected&&!online.pending&&humanOwner&&onlineRoom?.joined.red);}
+function onlineAction(action){
+  try{online.act(action);render({persist:false});}
+  catch(error){patchText($('online-status'),error.message);}
+}
+function updateOnlineUI(){
+  if(!onlineMode)return;
+  const joined=!!onlineRoom?.joined.red;
+  patchText($('online-status'),onlineStatus);
+  $('invite-friend').hidden=!online?.roomId||!online?.token;
+  $('join-room').hidden=!!online?.token||joined||!onlineRoom;
+  $('online-detail').textContent=humanOwner?`Вы — ${names[humanOwner].toLowerCase()}. ${!joined?'Отправьте ссылку другу.':onlineRoom.online?.[other(humanOwner)]?'Друг за доской.':'Друг сейчас не подключён. Его место сохранено.'}`:joined?'Оба места заняты. Вернитесь в браузер, где вы начали игру.':'Нажмите «Сесть за доску», чтобы присоединиться.';
+  const proposal=onlineRoom?.proposal;
+  $('online-proposal').hidden=!proposal;
+  if(proposal){
+    const own=proposal.owner===humanOwner;
+    patchText($('proposal-text'),own?'Предложение отправлено. Ждём ответа друга.':proposal.kind==='undo'?'Друг просит отменить свой последний ход и ответ на него.':'Друг предлагает ещё одну партию.');
+    $('accept-proposal').hidden=own;$('accept-proposal').disabled=!onlineReady();
+    patchText($('decline-proposal'),own?'Отозвать':'Отказаться');$('decline-proposal').disabled=!onlineReady();
+  }
+  const headline=state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):!joined?(online?.token?'Ждём друга':'Вас пригласили'):!online?.connected?'Восстанавливаем связь':state.currentPlayer===humanOwner?'Ваш ход':'Ход друга';
+  patchHTML($('turn'),`<div class="turn-orb">${state.status==='finished'?'✦':'↗'}</div><div><b>${headline}</b><small>${onlineRoom?.state.rules.name||gameRules(state).name}</small></div>`);
+  if(!onlineReady()||proposal)patchText($('hint'),proposal?'Ответьте на предложение, чтобы продолжить игру.':!joined?(online?.token?'Пригласите друга по ссылке.':'Нажмите «Сесть за доску», чтобы присоединиться.'):!online?.connected?'Восстанавливаем соединение. Позиция сохранена.':'Ждём подтверждения сервера…');
+  else if(state.currentPlayer!==humanOwner&&state.status==='playing')patchText($('hint'),'Сейчас ход друга.');
+}
+async function applyOnlineSnapshot(snapshot){
+  const previous=state,previousGame=meta.id;
+  if(previousGame!==snapshot.gameId&&previous.history.length){
+    const record=recordCurrent();if(record.result.status==='playing')record.result={status:'abandoned',winner:null,reason:'Начата новая сетевая партия'};storeRecord(record);
+  }
+  const previousOwner=humanOwner;
+  humanOwner=snapshot.owner||online.owner||humanOwner;
+  if(humanOwner!==previousOwner)flipped=humanOwner==='red';
+  onlineRoom=snapshot;
+  meta={id:snapshot.gameId,createdAt:snapshot.createdAt};
+  const changed=positionKey(previous)!==positionKey(snapshot.state)||previous.history.length!==snapshot.state.history.length;
+  if(changed||previousOwner!==humanOwner||snapshot.proposal)selected=null;
+  if(changed&&previousOwner===humanOwner){
+    const last=snapshot.state.history.at(-1);
+    await transition(()=>{state=snapshot.state;},{jumpId:last&&Math.abs(last.from[0]-last.to[0])+Math.abs(last.from[1]-last.to[1])>1?last.id:null});
+  }else {state=snapshot.state;render({persist:false});}
+  updateOnlineUI();
+  if(state.status==='finished'){
+    archiveCurrent();if(previous.status!=='finished'||previousGame!==meta.id)showResult();
+  }
+}
+async function startOnline(){
+  online?.close();$('online-retry').hidden=true;
+  online=new OnlineClient({
+    onState:snapshot=>{onlineUpdates=onlineUpdates.then(()=>applyOnlineSnapshot(snapshot)).catch(()=>{patchText($('online-status'),'Не удалось обновить доску. Перезагрузите страницу.');});},
+    onRoom:snapshot=>{onlineUpdates=onlineUpdates.then(()=>applyOnlineSnapshot(snapshot));},
+    onStatus:message=>{onlineStatus=message;if(!animating)render({persist:false});},
+    onError:message=>{onlineStatus=message;patchText($('online-status'),message);}
+  });
+  try{await online.start(requestedRules);}
+  catch(error){onlineStatus=error.message;patchText($('online-status'),onlineStatus);$('online-retry').hidden=false;}
+}
+if(onlineMode){
+  // Keep room controls inside the shared panel in both regular and expanded views.
+  document.querySelector('.game-controls').prepend(document.querySelector('.online-session'));
+  $('join-room').onclick=async()=>{try{$('join-room').disabled=true;await online.join();}catch(error){patchText($('online-status'),error.message);}finally{$('join-room').disabled=false;}};
+  $('invite-friend').onclick=async()=>{
+    const url=online.inviteLink();
+    try{
+      if(navigator.share)await navigator.share({title:'Битва зверей — сыграем?',url});
+      else {await navigator.clipboard.writeText(url);patchText($('online-status'),'Ссылка скопирована. Отправьте её другу.');}
+    }catch(error){
+      if(error.name==='AbortError')return;
+      modal(`<h2>Пригласить друга</h2><p>Скопируйте ссылку и отправьте другу:</p><input class="invite-url" aria-label="Ссылка на комнату" readonly value="${url}">`);
+    }
+  };
+  $('accept-proposal').onclick=()=>onlineAction({type:'reply',accept:true});
+  $('decline-proposal').onclick=()=>onlineAction({type:'reply',accept:false});
+  $('online-retry').onclick=startOnline;
+  startOnline();
+}

@@ -22,3 +22,32 @@ html[data-mode=bot] #red-player.is-active { border-style: dashed; }
 .room-nav + main { padding-top: 22px; }
 .board-expanded body > .room-nav { display: none; }
 @media(max-width:700px) { .room-nav { padding-top: 4px; } .room-nav + main { padding-top: 10px; } .room-mode { max-width: 180px; line-height: 1.5; } }
+.online-session { grid-column: 1/-1; padding: 8px 6px 13px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.online-status { font-size: 12px; font-weight: 600; line-height: 1.5; }
+.online-session p { font-size: 11px; line-height: 1.6; margin: 6px 0; color: var(--muted-ink); }
+.online-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.game-controls .online-buttons button { display: block; min-height: 38px; padding: 8px 11px; border: 1px solid #ae947359; background: #f6efdf; font-size: 11px; line-height: 1.4; }
+.game-controls .online-session [hidden] { display: none; }
+.invite-url { width: 100%; font: inherit; font-size: 12px; padding: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.board-expanded .online-session { max-width: 180px; padding: 3px 0 10px; }
+.board-expanded .online-session p { font-size: 10px; }
+.board-expanded .game-controls .online-buttons button { width: 100%; min-height: 32px; padding: 5px; font-size: 10px; }
+@media(max-width:600px) and (orientation:portrait) {
+  html.board-expanded[data-mode=online] .game { --expanded-board-width: min(calc(100vw - 24px),calc((100dvh - 290px) * 7 / 9)); grid-template-rows:38px auto 38px auto; }
+  html.board-expanded[data-mode=online] .game-controls { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
+  .board-expanded .online-session { max-width:none; padding:2px 4px 6px; }
+  .board-expanded .online-session p { margin:2px 0; }
+  .board-expanded .online-buttons { margin-top:4px; }
+  .board-expanded .game-controls .online-buttons button { width:auto; }
+}
+@media(max-height:540px) and (orientation:landscape) {
+  .board-expanded .online-session p { display:none; }
+  .board-expanded .online-session { padding-bottom:4px; }
+  .board-expanded .online-status { font-size:10px; }
+  .board-expanded .online-buttons { margin-top:3px; }
+  html.board-expanded[data-mode=online] .game-controls { gap:1px; padding:4px; }
+  html.board-expanded[data-mode=online] .game-controls > button { min-height:31px; padding:2px; }
+  html.board-expanded[data-mode=online] .game-controls > button small { font-size:8px; }
+}
+
+html.board-expanded[data-mode=online] .game-controls { max-height: calc(100dvh - 24px); overflow-y: auto; }

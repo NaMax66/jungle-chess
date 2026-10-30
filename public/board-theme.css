@@ -89,13 +89,15 @@ h1 em { color: var(--red); }
   transition: background .2s, color .2s, border-color .2s;
 }
 .player.facing-away { transform: rotate(180deg); }
+.player { --trophy-direction: 1; }
+.game > .player:first-child:not(.facing-away) { --trophy-direction: -1; }
 .player > b { font-size: 12px; }
 .player-center { display: flex; flex: 1; align-items: center; justify-content: center; min-width: 0; }
-.trophies { --trophy-size: var(--trophy-diameter, 56px); --trophy-overlap: calc(var(--trophy-size) - 28px); display: flex; align-items: center; height: 28px; transform: translateY(5px); isolation: isolate; }
+.trophies { --trophy-size: var(--trophy-diameter, 56px); --trophy-overlap: calc(var(--trophy-size) - 28px); --trophy-offset: 5px; display: flex; align-items: center; height: 28px; transform: translateY(calc(var(--trophy-offset) * var(--trophy-direction))); isolation: isolate; }
 .trophies[hidden], .player-message[hidden] { display: none; }
 .trophies .piece.trophy-token { position: relative; inset: auto; display: grid; place-items: center; flex: 0 0 var(--trophy-size); width: var(--trophy-size); height: var(--trophy-size); margin: 0; box-shadow: -2px 0 4px #211a1670, 0 3px 4px #211a1650; }
 .trophies .piece.trophy-token + .trophy-token { margin-left: calc(-1 * var(--trophy-overlap)); }
-.trophy-token:nth-child(even) { transform: translateY(-4px); }
+.trophy-token:nth-child(even) { transform: translateY(calc(-4px * var(--trophy-direction))); }
 .player-message {
   margin-left: 0;
   font-size: 10px;
@@ -427,7 +429,7 @@ dialog p, dialog li, dialog .close { color: var(--muted-ink); }
   .river-label span { -webkit-text-stroke-width: 4px; }
   .player { min-height: 47px; padding: 9px 11px; gap: 8px; }
   .player > b { font-size: 11px; }
-  .trophies { --trophy-overlap: calc(var(--trophy-size) - 18px); transform: translateY(7px); }
+  .trophies { --trophy-overlap: calc(var(--trophy-size) - 18px); --trophy-offset: 7px; }
   .player.is-active .player-message { font-size: 14px; }
   .player-message { font-size: 9px; }
   .board-wrap::before, .board-wrap::after { left: 8px; right: 8px; height: 3px; }

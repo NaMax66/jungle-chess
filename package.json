@@ -4,11 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.mjs",
+    "dev": "node scripts/dev.mjs",
     "start": "node server.mjs",
     "build": "node scripts/build.mjs",
     "preview": "node server.mjs --dist",
-    "test": "node --test"
+    "test": "node --test",
+    "dev:rooms": "wrangler dev --port 8787",
+    "test:rooms": "node scripts/check-rooms.mjs"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.0"
+  }
 }

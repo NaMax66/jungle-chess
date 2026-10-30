@@ -21,3 +21,9 @@
 .lobby-privacy { grid-column: 1/-1; font-size: 11px; color: var(--muted-ink); line-height: 1.8; margin: 0; }
 @media(max-width:1000px) { .lobby-main { gap: 24px; grid-template-columns: 1fr; padding-top: 32px; } .lobby-intro { max-width: 580px; } .mode-art { height: 110px; } }
 @media(max-width:600px) { .lobby-main { display: flex; padding: 28px 5%; } .lobby-intro h1 { display: block; font-size: 42px; } .lobby .eyebrow { display: block; } .lobby-caption { display: none; } .mode-cards { grid-template-columns: 1fr; } .mode-card { padding: 24px; } .mode-local .play-link { margin-top: 12px; } .mode-art { margin-bottom: 18px; } }
+
+.mode-online { grid-column: 1/-1; }
+.mode-online .mode-art { height: 90px; margin-bottom: 16px; }
+.mode-online .mode-art img { width: 100px; height: 100px; }
+.mode-online .play-link { margin-top: 12px; background: #5c6952; }
+.mode-online .play-link:hover { background: #46533d; }
