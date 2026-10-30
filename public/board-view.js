@@ -32,7 +32,7 @@ export function setupBoardView() {
     for (const button of mirrors) button.disabled = document.getElementById(button.dataset.action).disabled;
     const status = panel.querySelector('.expanded-status');
     const player = game.dataset.activePlayer;
-    status.textContent = player === 'red' ? 'Ходят красные' : player === 'blue' ? 'Ходят жёлтые' : 'Партия завершена';
+    status.textContent = player === 'red' ? (game.dataset.mode==='bot'?'Ход бота':'Ходят красные') : player === 'blue' ? 'Ходят жёлтые' : 'Партия завершена';
     status.dataset.player = player;
   };
   for (const button of mirrors) {

@@ -1,19 +1,7 @@
 <!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Битва зверей · Jungle Chess</title>
-  <meta name="description" content="Битва зверей — настольная стратегия Dou Shou Qi. Играйте вдвоём на одном устройстве.">
-  <meta property="og:title" content="Битва зверей · Jungle Chess">
-  <meta property="og:description" content="Битва зверей — настольная стратегия Dou Shou Qi. Играйте вдвоём на одном устройстве.">
-  <meta property="og:type" content="website">
-  <meta property="og:locale" content="ru_RU">
-  <meta property="og:site_name" content="Битва зверей">
-  <meta property="og:url" content="https://jungle-chess.selfkit.org/local/">
-  <link rel="canonical" href="https://jungle-chess.selfkit.org/local/">
-  <script>location.replace('/local/' + location.search + location.hash);</script>
-  <meta http-equiv="refresh" content="0;url=/local/">
-</head>
-<body><p><a href="/local/">Битва зверей — играть вдвоём на одном устройстве</a></p></body>
-</html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#302b25"><title>Битва зверей — выберите соперника</title><meta name="description" content="Битва зверей: играйте вдвоём на одном устройстве или с ботом. Китайская настольная стратегия Dou Shou Qi."><meta property="og:title" content="Битва зверей"><meta property="og:description" content="Восемь животных. Одна река. Сыграйте с другом или бросьте вызов боту."><meta property="og:type" content="website"><meta property="og:locale" content="ru_RU"><meta property="og:url" content="https://jungle-chess.selfkit.org/"><link rel="canonical" href="https://jungle-chess.selfkit.org/"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/board-theme.css"><link rel="stylesheet" href="/lobby.css"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐅%3C/text%3E%3C/svg%3E"><meta property="og:site_name" content="Битва зверей"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="Битва зверей"><meta name="twitter:description" content="Сыграйте с другом или бросьте вызов боту."></head>
+<body class="lobby"><header><a class="brand" href="/"><span class="brand-icon" aria-hidden="true">鬥</span><span>БИТВА ЗВЕРЕЙ<small>JUNGLE CHESS</small></span></a><span class="lobby-caption">Древняя игра. Новая встреча.</span></header>
+<main class="lobby-main"><section class="lobby-intro"><div class="eyebrow">DOU SHOU QI · 鬥獸棋</div><h1>С кем встретимся<br><em>у реки?</em></h1><p>Восемь зверей, хитрые ловушки и один путь к чужому логову. Выберите соперника — и начните свою историю.</p><label class="lobby-rules" for="lobby-rules">Правила партии<select id="lobby-rules"><option value="battle">Битва зверей</option><option value="classic-ymi">Классика · YMI</option></select></label><p class="lobby-footnote">В нашей версии крыса атакует через берег, а слон может взять крысу. В классике YMI захваты через берег запрещены, собака сильнее волка. Правила фиксируются при начале партии.</p></section>
+<section class="mode-cards" aria-label="Режимы игры"><article class="mode-card mode-local"><div class="mode-art"><img src="/assets/tiger-head-v1-256.webp" alt="Тигр"><img src="/assets/lion-head-v1-256.webp" alt="Лев"></div><span class="eyebrow">ЛИЦОМ К ЛИЦУ · 01</span><h2>Вдвоём за доской</h2><p>Одно устройство на двоих. Фишки обращены к каждому игроку — совсем как в настольной игре.</p><a id="play-local" class="play-link" href="/local/">Сесть за доску <span aria-hidden="true">↗</span></a></article>
+<article class="mode-card mode-bot"><div class="mode-art"><img src="/assets/wolf-head-v1-256.webp" alt="Волк"></div><span class="eyebrow">СВОЙ ТЕМП · 02</span><h2>Против бота</h2><p>Соперник всегда рядом. Играйте за жёлтых, изучайте зверей и пробуйте новые сочетания.</p><label for="lobby-difficulty">Сложность<select id="lobby-difficulty"><option value="easy">Лёгкий</option><option value="medium" selected>Средний</option><option value="hard">Сложный</option></select></label><a id="play-bot" class="play-link" href="/bot/">Бросить вызов <span aria-hidden="true">↗</span></a></article></section>
+<p class="lobby-privacy">Партии сохраняются только в этом браузере. Вы можете продолжить игру или экспортировать запись. На сервер ходы не отправляются.</p></main><footer><span>БИТВА ЗВЕРЕЙ</span><span>Без спешки. Ход за ходом.</span></footer><script type="module" src="/lobby.js"></script></body></html>

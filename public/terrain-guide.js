@@ -1,3 +1,4 @@
+import {gameRules,specialRulesText} from './rulesets.js';
 import {terrainIcon} from './terrain-art.js';
 import {getBoardTheme} from './themes/index.js';
 
@@ -12,8 +13,9 @@ export function terrainGuideIcon(id){
   return id==='river'?'<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="river-guide-water" d="M5 5H95V95H5Z"/><path class="river-guide-waves" d="M5 20Q16 9 28 20T51 20T74 20T97 20 M5 40Q16 29 28 40T51 40T74 40T97 40 M5 60Q16 49 28 60T51 60T74 60T97 60 M5 80Q16 69 28 80T51 80T74 80T97 80"/></svg>':terrainIcon(id);
 }
 
-export function terrainGuideMarkup(id,themeId='classic'){
-  const entry=terrainEntries[id];
+export function terrainGuideMarkup(id,themeId='classic',state=null){
+  const entry=terrainEntries[id]?{...terrainEntries[id]}:null;
+  if(entry&&id==='river'&&state&&gameRules(state).id!=='battle')entry.rules='Только крыса плавает. Лев и тигр прыгают через реку, если на пути нет крысы. '+specialRulesText(state);
   if(!entry)return null;
   const theme=getBoardTheme(themeId),story=theme?.terrain[id];
   const art=story?.artwork;

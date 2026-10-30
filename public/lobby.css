@@ -1,0 +1,23 @@
+.lobby-main { display: grid; grid-template-columns: minmax(220px,.8fr) minmax(0,1.8fr); gap: 48px; padding-top: 64px; }
+.lobby-intro h1 { font-size: clamp(38px,4.5vw,66px); line-height: 1.08; margin: 22px 0; }
+.lobby-intro h1 em { color: var(--red); font-weight: 400; }
+.lobby-intro p { font-size: 14px; line-height: 1.8; color: var(--muted-ink); }
+.lobby-caption { font-size: 12px; color: var(--muted-ink); }
+.mode-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.mode-card { display: flex; flex-direction: column; align-items: stretch; padding: 28px; border: 1px solid var(--line); border-radius: 6px; background: #eee4d254; }
+.mode-card h2 { font-family: Georgia,serif; font-size: 27px; font-weight: 400; margin: 18px 0 0; }
+.mode-card p { color: var(--muted-ink); font-size: 13px; line-height: 1.8; }
+.mode-art { height: 150px; display: flex; align-items: center; justify-content: center; margin: 0 0 30px; }
+.mode-art img { width: 140px; height: 140px; object-fit: contain; filter: drop-shadow(0 6px 3px #35241725); }
+.mode-local .mode-art img { width: 100px; height: 120px; }
+.play-link { display: flex; justify-content: space-between; gap: 16px; margin-top: auto; padding: 15px 17px; background: var(--ink); color: var(--paper); border-radius: 3px; text-decoration: none; font-size: 13px; }
+.play-link:hover { background: var(--red); }
+.mode-bot .play-link { background: var(--red); margin-top: 20px; }
+.mode-bot .play-link:hover { background: #822921; }
+.lobby label { display: grid; gap: 8px; font-size: 11px; color: var(--muted-ink); }
+.lobby select { width: 100%; border: 1px solid var(--line); border-radius: 3px; padding: 11px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; }
+.lobby-rules { margin-top: 26px; }
+.lobby-intro p.lobby-footnote { font-size: 11px; }
+.lobby-privacy { grid-column: 1/-1; font-size: 11px; color: var(--muted-ink); line-height: 1.8; margin: 0; }
+@media(max-width:1000px) { .lobby-main { gap: 24px; grid-template-columns: 1fr; padding-top: 32px; } .lobby-intro { max-width: 580px; } .mode-art { height: 110px; } }
+@media(max-width:600px) { .lobby-main { display: flex; padding: 28px 5%; } .lobby-intro h1 { display: block; font-size: 42px; } .lobby .eyebrow { display: block; } .lobby-caption { display: none; } .mode-cards { grid-template-columns: 1fr; } .mode-card { padding: 24px; } .mode-local .play-link { margin-top: 12px; } .mode-art { margin-bottom: 18px; } }

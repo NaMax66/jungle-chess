@@ -1,0 +1,13 @@
+.session-rules { font-size: 11px; line-height: 1.7; color: var(--muted-ink); }
+.game-options label { display: grid; gap: 8px; font-size: 12px; margin: 18px 0; }
+.game-options select { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); color: var(--ink); }
+.record-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.record-actions button, #bot-retry { padding: 9px 12px; font-size: 11px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); color: var(--ink); }
+.archive-list { display: grid; gap: 8px; max-height: 50dvh; overflow-y: auto; }
+.archive-list button { display: grid; gap: 6px; padding: 14px; text-align: left; border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--ink); font-size: 12px; }
+.archive-list small { color: var(--muted-ink); }
+#bot-retry[hidden] { display: none; }
+html[data-mode=bot] #red-player.is-active { border-style: dashed; }
+@media(max-width:700px) { .session-rules { margin: 0; font-size: 10px; order: 0; } }
+
+.intro > .session-rules { display: block; }
