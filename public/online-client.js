@@ -15,7 +15,7 @@ export class OnlineClient{
   async request(path,body){
     const response=await fetch(path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(10000)});
     const value=await response.json().catch(()=>({error:'Сервер комнаты недоступен.'}));
-    if(!response.ok)throw new Error(value.error||'Не удалось открыть комнату.');return value;
+    if(!response.ok){const error=new Error(value.error||'Не удалось открыть комнату.');error.status=response.status;throw error;}return value;
   }
   async start(rules){
     this.onStatus('Открываем комнату…');
@@ -28,7 +28,17 @@ export class OnlineClient{
     }
     const room=await this.request(`/api/rooms/${this.roomId}/state`);this.onRoom(room);
     if(this.token)this.connect();
-    else this.onStatus(room.joined.red?'Оба места заняты.':'Друг приглашает вас за доску.');
+    else if(room.joined.red)this.onStatus('Оба места заняты.');
+    else {
+      this.onStatus('Занимаем место за доской…');
+      try{await this.join();}
+      catch(error){
+        if(error.status!==409)throw error;
+        // Another invitation may have claimed the last seat while we loaded.
+        this.onRoom(await this.request(`/api/rooms/${this.roomId}/state`));
+        this.onStatus('Оба места заняты.');
+      }
+    }
   }
   async join(){
     const seat=await this.request(`/api/rooms/${this.roomId}/join`,{});this.remember(seat);this.connect();

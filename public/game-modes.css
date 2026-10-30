@@ -51,3 +51,25 @@ html[data-mode=bot] #red-player.is-active { border-style: dashed; }
 }
 
 html.board-expanded[data-mode=online] .game-controls { max-height: calc(100dvh - 24px); overflow-y: auto; }
+
+.board-wrap > .waiting-blur { filter: blur(7px); pointer-events: none; }
+.room-waiting { position: absolute; inset: 0; z-index: 12; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; background: #f4eddf9c; text-align: center; }
+.room-waiting[hidden] { display: none; }
+.waiting-mark { display: grid; place-items: center; width: 60px; height: 60px; border: 1px solid #a8383066; border-radius: 50%; color: var(--red); font: 36px Georgia, serif; }
+.room-waiting h2 { margin: 0; font-size: clamp(20px, 3vw, 28px); font-weight: 500; color: var(--ink); }
+.room-waiting button { padding: 12px 18px; border: 1px solid #a8383059; border-radius: 3px; background: var(--paper); color: var(--red); font: inherit; font-size: 13px; }
+.room-waiting button:hover, .room-waiting button:focus-visible { border-color: var(--red); background: #eee5d4; }
+.room-waiting button:disabled { opacity: .5; cursor: wait; }
+.room-waiting button span { margin-left: 10px; }
+.board-proposal { position: absolute; inset: 0; z-index: 13; display: grid; place-items: center; padding: 18px; background: #f4eddf85; }
+.board-proposal[hidden], .board-proposal [hidden] { display: none; }
+.proposal-card { width: min(100%, 360px); padding: clamp(18px, 4vw, 30px); border: 1px solid #ae9473; border-radius: 5px; background: var(--paper); box-shadow: 0 10px 40px #302b2526; }
+.proposal-card h2 { margin: 0 0 14px; color: var(--ink); font-size: clamp(20px, 3vw, 26px); font-weight: 500; }
+.proposal-card p { margin: 0; color: var(--muted-ink); font-size: 13px; line-height: 1.7; }
+.proposal-card .online-buttons { gap: 10px; margin-top: 22px; }
+.proposal-card button { min-height: 44px; padding: 10px 16px; border: 1px solid #ae9473; border-radius: 3px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; }
+.proposal-card #accept-proposal { border-color: var(--red); background: var(--red); color: var(--paper); }
+.proposal-card button:hover { box-shadow: 0 2px 8px #302b2526; }
+.proposal-card #proposal-connection { margin-top: 14px; font-size: 11px; }
+@media(max-height:540px) and (orientation:landscape) { .board-proposal { padding: 10px; } .proposal-card { padding: 15px; } .proposal-card .online-buttons { margin-top: 12px; } }
+@media(max-height:540px) and (orientation:landscape) { .room-waiting { gap: 12px; } .waiting-mark { width: 42px; height: 42px; font-size: 26px; } }

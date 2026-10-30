@@ -14,7 +14,7 @@ document.documentElement.dataset.boardTheme||='classic';
 const $=id=>document.getElementById(id),names={blue:'Жёлтые',red:'Красные'};
 const botMode=document.documentElement.dataset.mode==='bot';
 const onlineMode=document.documentElement.dataset.mode==='online';
-let online=null,onlineRoom=null,humanOwner=null,onlineStatus='Открываем комнату…',onlineUpdates=Promise.resolve();
+let online=null,onlineRoom=null,humanOwner=null,onlineStatus='Открываем комнату…',onlineUpdates=Promise.resolve(),waitingBoardPreview=false;
 const key=botMode?'jungle-chess-bot-v1':'jungle-chess-v1';
 const query=new URLSearchParams(location.search);
 const requestedRules=rulesets[query.get('rules')]?query.get('rules'):'battle';
@@ -338,21 +338,31 @@ function onlineAction(action){
 function updateOnlineUI(){
   if(!onlineMode)return;
   const joined=!!onlineRoom?.joined.red;
-  patchText($('online-status'),onlineStatus);
-  $('invite-friend').hidden=!online?.roomId||!online?.token;
-  $('join-room').hidden=!!online?.token||joined||!onlineRoom;
-  $('online-detail').textContent=humanOwner?`Вы — ${names[humanOwner].toLowerCase()}. ${!joined?'Отправьте ссылку другу.':onlineRoom.online?.[other(humanOwner)]?'Друг за доской.':'Друг сейчас не подключён. Его место сохранено.'}`:joined?'Оба места заняты. Вернитесь в браузер, где вы начали игру.':'Нажмите «Сесть за доску», чтобы присоединиться.';
   const proposal=onlineRoom?.proposal;
+  patchText($('online-status'),onlineStatus);
+  $('invite-friend').hidden=!online?.roomId||!online?.token||joined;
+  const covered=!joined&&!waitingBoardPreview;
+  $('room-waiting').hidden=!covered;
+  $('board').classList.toggle('waiting-blur',covered||!!proposal);
+  $('board').inert=covered||!!proposal;
+  patchText($('waiting-title'),onlineRoom?'Ожидаем игрока':'Открываем комнату…');
+  $('preview-board').disabled=!onlineRoom;
+  $('online-detail').textContent=humanOwner?`Вы — ${names[humanOwner].toLowerCase()}. ${!joined?'Отправьте ссылку другу.':onlineRoom.online?.[other(humanOwner)]?'Друг за доской.':'Друг сейчас не подключён. Его место сохранено.'}`:joined?'Оба места заняты. Вернитесь в браузер, где вы начали игру.':'Подключаем вас к игре автоматически.';
+  const proposalWasHidden=$('online-proposal').hidden;
+  const proposalHadFocus=$('online-proposal').contains(document.activeElement);
   $('online-proposal').hidden=!proposal;
   if(proposal){
     const own=proposal.owner===humanOwner;
-    patchText($('proposal-text'),own?'Предложение отправлено. Ждём ответа друга.':proposal.kind==='undo'?'Друг просит отменить свой последний ход и ответ на него.':'Друг предлагает ещё одну партию.');
+    patchText($('proposal-title'),proposal.kind==='undo'?'Отмена хода':'Новая партия');
+    patchText($('proposal-text'),own?'Предложение отправлено. Ждём ответа друга.':proposal.kind==='undo'?'Друг просит отменить свой последний ход и ответ на него. До вашего ответа игра приостановлена.':'Друг предлагает начать новую партию. До вашего ответа игра приостановлена.');
     $('accept-proposal').hidden=own;$('accept-proposal').disabled=!onlineReady();
     patchText($('decline-proposal'),own?'Отозвать':'Отказаться');$('decline-proposal').disabled=!onlineReady();
-  }
-  const headline=state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):!joined?(online?.token?'Ждём друга':'Вас пригласили'):!online?.connected?'Восстанавливаем связь':state.currentPlayer===humanOwner?'Ваш ход':'Ход друга';
+    $('proposal-connection').hidden=!!online?.connected;
+    if(proposalWasHidden)$(own?'decline-proposal':'accept-proposal').focus();
+  }else if(proposalHadFocus)document.querySelector('.game-controls [data-action="flip"]').focus();
+  const headline=proposal?(proposal.owner===humanOwner?'Ждём ответа друга':'Ответьте другу'):state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):!joined?(online?.token?'Ждём друга':'Вас пригласили'):!humanOwner?'Оба места заняты':!online?.connected?'Восстанавливаем связь':state.currentPlayer===humanOwner?'Ваш ход':'Ход друга';
   patchHTML($('turn'),`<div class="turn-orb">${state.status==='finished'?'✦':'↗'}</div><div><b>${headline}</b><small>${onlineRoom?.state.rules.name||gameRules(state).name}</small></div>`);
-  if(!onlineReady()||proposal)patchText($('hint'),proposal?'Ответьте на предложение, чтобы продолжить игру.':!joined?(online?.token?'Пригласите друга по ссылке.':'Нажмите «Сесть за доску», чтобы присоединиться.'):!online?.connected?'Восстанавливаем соединение. Позиция сохранена.':'Ждём подтверждения сервера…');
+  if(!onlineReady()||proposal)patchText($('hint'),proposal?(proposal.owner===humanOwner?'Ждём ответа друга. Можно отозвать предложение.':'Ответьте на предложение, чтобы продолжить игру.'):!joined?(online?.token?'Пригласите друга по ссылке.':'Подключаем вас к игре…'):!humanOwner?'Оба места заняты. Вернитесь в браузер, где вы начали игру.':!online?.connected?'Восстанавливаем соединение. Позиция сохранена.':'Ждём подтверждения сервера…');
   else if(state.currentPlayer!==humanOwner&&state.status==='playing')patchText($('hint'),'Сейчас ход друга.');
 }
 async function applyOnlineSnapshot(snapshot){
@@ -390,7 +400,7 @@ async function startOnline(){
 if(onlineMode){
   // Keep room controls inside the shared panel in both regular and expanded views.
   document.querySelector('.game-controls').prepend(document.querySelector('.online-session'));
-  $('join-room').onclick=async()=>{try{$('join-room').disabled=true;await online.join();}catch(error){patchText($('online-status'),error.message);}finally{$('join-room').disabled=false;}};
+  $('preview-board').onclick=()=>{waitingBoardPreview=true;updateOnlineUI();};
   $('invite-friend').onclick=async()=>{
     const url=online.inviteLink();
     try{
