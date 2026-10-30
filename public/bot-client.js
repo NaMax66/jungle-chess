@@ -27,7 +27,7 @@ export class BotClient{
 }
 export async function loadWeights(rules){
   try{
-    const response=await fetch('/bot/weights-v1.json',{signal:AbortSignal.timeout(2500)});
+    const response=await fetch('/bot/weights-v2.json',{signal:AbortSignal.timeout(2500)});
     if(response.ok)return validateWeights(await response.json(),rules);
   }catch{}
   return baseline;

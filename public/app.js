@@ -4,7 +4,8 @@ import {snapshotPieces,animatePieces} from './piece-motion.js';
 import {setupBoardView} from './board-view.js';
 import {terrainEntries,terrainGuideIcon,terrainGuideMarkup} from './terrain-guide.js';
 import {setupMusic} from './music.js';
-import {rulesets,resolveRules,gameRules,rankOf,specialRulesText} from './rulesets.js';
+import {patchHTML,patchText,patchAttribute,placeBefore} from './dom-patch.js';
+import {rulesets,resolveRules,gameRules,rankOf,specialRulesText,repetitionDescription} from './rulesets.js';
 import {baseline,levels,validateWeights} from './bot-search.js';
 import {BotClient,loadWeights} from './bot-client.js';
 import {gameRecord,readArchive,storeRecord,downloadRecord} from './game-records.js';
@@ -22,7 +23,7 @@ const bot=botMode?new BotClient():null;
 try{
   const data=JSON.parse(localStorage.getItem(key));
   if(data?.version===1&&data.state?.pieces&&data.state.positions){
-    const rules=resolveRules(data.state.rules||'battle');
+    const rules=resolveRules(data.state.rules||'battle@1');
     state={...data.state,rules};flipped=!!data.flipped;undo=data.undo||[];
     difficulty=levels[data.difficulty]?data.difficulty:'medium';
     meta=data.meta?.id?data.meta:freshMeta();weights=validateWeights(data.weights||baseline,rules);loaded=true;
@@ -51,7 +52,7 @@ function refreshWeights(){
 async function runBot(){
   if(!botMode||thinking||animating||state.status!=='playing'||state.currentPlayer!=='red')return;
   const epoch=++botEpoch,position=positionKey(state);
-  thinking=true;botError=false;render();
+  thinking=true;botError=false;render({persist:false});
   try{
     const choice=await bot.choose(state,{difficulty,weights});
     if(epoch!==botEpoch||positionKey(state)!==position)return;
@@ -85,16 +86,28 @@ function sizeTrophies(){
     const player=$(owner+'-player');
     // On narrow phones the board token itself can be smaller than the banner.
     const minimum=Math.min(player.offsetHeight,original);
-    player.style.setProperty('--trophy-diameter',`${Math.min(original,Math.max(minimum,56))}px`);
+    const diameter=`${Math.min(original,Math.max(minimum,56))}px`;
+    if(player.style.getPropertyValue('--trophy-diameter')!==diameter)player.style.setProperty('--trophy-diameter',diameter);
   }
 }
-function render(){
+const boardCells=new Map();
+function updatePieceFace(token,animal,away,rank=null){
+  // Once decoded, keep the actual portrait node even through moves and captures.
+  if(!token.querySelector('.piece-face'))token.innerHTML=pieceFace(animal);
+  const face=token.querySelector('.piece-face');
+  face.classList.toggle('facing-away',away);
+  if(rank!==null){
+    let badge=face.querySelector('small');
+    if(!badge){badge=document.createElement('small');face.append(badge);}
+    patchText(badge,rank);
+  }
+}
+function render({persist=true}={}){
   const moves=selected?legalMoves(state,selected):[];
   const last=state.history.at(-1);
   const board=$('board');
   board.classList.toggle('flipped',flipped);
-  board.style.setProperty('--river-phase',`-${performance.now()/1000}s`);
-  board.replaceChildren();
+  const pieces=new Map([...board.querySelectorAll('[data-piece-id]')].map(node=>[node.dataset.pieceId,node]));
   for(let i=0;i<63;i++){
     const x=flipped?6-i%7:i%7;
     const y=flipped?8-Math.floor(i/7):Math.floor(i/7);
@@ -104,20 +117,33 @@ function render(){
     const p=state.pieces.find(p=>p.x===x&&p.y===y);
     const trapped=!!p&&t.type==='trap'&&t.owner!==p.owner;
     const allowed=moves.find(m=>m.x===x&&m.y===y);
-    const cell=document.createElement('button');
+    const square=`${x},${y}`;
+    let cell=boardCells.get(square);
+    if(!cell){cell=document.createElement('button');boardCells.set(square,cell);}
     const isLast=last&&[last.from,last.to].some(([lx,ly])=>lx===x&&ly===y);
-    cell.className=`cell ${t.type} ${isBridge?'bridge':''} ${bridgeShadow?'bridge-shadow':''} ${p?.id===selected?'selected':''} ${allowed?'legal':''} ${allowed?.capture?'capture':''} ${isLast?'last':''}`;
-    cell.dataset.owner=t.owner||'';
-    cell.setAttribute('aria-label',`${coords(x,y)}: ${p?names[p.owner]+' '+animals[p.animal].name:t.type==='water'?'Вода':t.type==='trap'?'Ловушка '+names[t.owner]:t.type==='den'?'Логово '+names[t.owner]:'Пустая клетка'}${allowed?', доступный ход':''}`);
-    cell.setAttribute('aria-pressed',String(p?.id===selected&&!!p));
+    patchAttribute(cell,'class',`cell ${t.type} ${isBridge?'bridge':''} ${bridgeShadow?'bridge-shadow':''} ${p?.id===selected?'selected':''} ${allowed?'legal':''} ${allowed?.capture?'capture':''} ${isLast?'last':''}`);
+    patchAttribute(cell,'data-owner',t.owner||'');
+    patchAttribute(cell,'aria-label',`${coords(x,y)}: ${p?names[p.owner]+' '+animals[p.animal].name:t.type==='water'?'Вода':t.type==='trap'?'Ловушка '+names[t.owner]:t.type==='den'?'Логово '+names[t.owner]:'Пустая клетка'}${allowed?', доступный ход':''}`);
+    patchAttribute(cell,'aria-pressed',p?.id===selected&&!!p);
     const seal=terrainIcon(t.type);
     const away=facingAway(t.owner);
-    if(trapped)cell.setAttribute('aria-label',cell.getAttribute('aria-label')+', в чужой ловушке, сила 0');
-    cell.innerHTML=`${seal?`<span class="terrain-icon ${away?'facing-away':''}" aria-hidden="true">${seal}</span>`:''}${(x===0||y===8)?`<span class="coord">${coords(x,y)}</span>`:''}${p?`<span class="piece ${p.owner} ${trapped?'is-trapped':''}" data-piece-id="${p.id}" aria-hidden="true">${pieceFace(p.animal,facingAway(p.owner),trapped?0:rankOf(state,p.animal))}</span>`:''}`;
+    if(trapped)patchAttribute(cell,'aria-label',cell.getAttribute('aria-label')+', в чужой ловушке, сила 0');
+    patchHTML(cell,`${seal?`<span class="terrain-icon ${away?'facing-away':''}" aria-hidden="true">${seal}</span>`:''}${(x===0||y===8)?`<span class="coord">${coords(x,y)}</span>`:''}`);
+    if(p){
+      let token=pieces.get(p.id);
+      if(!token){token=document.createElement('span');token.dataset.pieceId=p.id;token.setAttribute('aria-hidden','true');}
+      patchAttribute(token,'class',`piece ${p.owner} ${trapped?'is-trapped':''}`);
+      updatePieceFace(token,p.animal,facingAway(p.owner),trapped?0:rankOf(state,p.animal));
+      if(token.parentNode!==cell)cell.append(token);
+    }
     cell.onclick=()=>clickCell(p,x,y);
-    board.append(cell);
+    if(board.children[i]!==cell)placeBefore(board,cell,board.children[i]||null);
   }
-  board.insertAdjacentHTML('beforeend',riverMarkup());
+  for(const [id,token] of pieces)if(!state.pieces.some(p=>p.id===id))token.remove();
+  if(!board.querySelector('.river-life')){
+    board.style.setProperty('--river-phase',`-${performance.now()/1000}s`);
+    board.insertAdjacentHTML('beforeend',riverMarkup());
+  }
 for(const owner of ['red','blue']){
   const player=$(owner+'-player');
   const opponent=other(owner);
@@ -128,22 +154,42 @@ for(const owner of ['red','blue']){
   const message=state.status==='finished'?(state.winner?(state.winner===owner?'ПОБЕДА':'ПОРАЖЕНИЕ'):'НИЧЬЯ'):(active?(botMode&&owner==='red'?(botError?'НУЖЕН ПОВТОР':thinking?'БОТ ДУМАЕТ':'ХОД БОТА'):'ВАШ ХОД'):'ЖДИТЕ ХОДА');
   player.classList.toggle('is-active',active);
   player.classList.toggle('facing-away',facingAway(owner));
-  player.setAttribute('role','group');
-  player.setAttribute('aria-label',`${names[owner]}: ${message.toLowerCase()}`);
-  player.innerHTML=`<span class="player-dot" aria-hidden="true"></span><b>${names[owner]}${botMode&&owner==='red'?' · бот':''}</b><span class="player-center"><span class="trophies" role="list" aria-label="Захвачено: ${captured.map(a=>animals[a].name).join(', ')}" ${showTrophies?'':'hidden'}>${captured.map(a=>`<span class="piece trophy-token ${opponent}" role="listitem" data-trophy-id="${opponent}-${a}" data-facing-away="${facingAway(owner)}" aria-label="${names[opponent]}: ${animals[a].name}" title="Захвачено: ${names[opponent].toLowerCase()}, ${animals[a].name.toLowerCase()}">${pieceFace(a)}</span>`).join('')}</span></span><strong class="player-message">${message}</strong>`;
+  patchAttribute(player,'role','group');
+  patchAttribute(player,'aria-label',`${names[owner]}: ${message.toLowerCase()}`);
+  patchHTML(player,`<span class="player-dot" aria-hidden="true"></span><b>${names[owner]}${botMode&&owner==='red'?' · бот':''}</b><span class="player-center"><span class="trophies" role="list"></span></span><strong class="player-message"></strong>`);
+  patchText(player.querySelector('.player-message'),message);
+  const tray=player.querySelector('.trophies');
+  if(tray.hidden===showTrophies)tray.hidden=!showTrophies;
+  patchAttribute(tray,'aria-label',`Захвачено: ${captured.map(a=>animals[a].name).join(', ')}`);
+  const trophies=new Map([...tray.children].map(node=>[node.dataset.trophyId,node]));
+  for(const [index,a] of captured.entries()){
+    const id=`${opponent}-${a}`;
+    let token=trophies.get(id);
+    if(!token){
+      token=document.createElement('span');token.className=`piece trophy-token ${opponent}`;
+      token.dataset.trophyId=id;token.setAttribute('role','listitem');
+      token.setAttribute('aria-label',`${names[opponent]}: ${animals[a].name}`);
+      token.title=`Захвачено: ${names[opponent].toLowerCase()}, ${animals[a].name.toLowerCase()}`;
+    }
+    patchAttribute(token,'data-facing-away',facingAway(owner));
+    updatePieceFace(token,a,false);
+    if(tray.children[index]!==token)placeBefore(tray,token,tray.children[index]||null);
+    trophies.delete(id);
+  }
+  for(const token of trophies.values())token.remove();
 }
 const game=document.querySelector('.game');
-game.dataset.mode=botMode?'bot':'local';
-game.dataset.activePlayer=state.status==='playing'?state.currentPlayer:'none';
-game.dataset.turnEdge=state.status==='playing'?(state.currentPlayer===(flipped?'blue':'red')?'top':'bottom'):'none';
-game.insertBefore($(flipped?'blue-player':'red-player'),game.firstChild);
-game.insertBefore($(flipped?'red-player':'blue-player'),game.querySelector('.game-controls')||$('hint'));
-$('turn').className='turn '+state.currentPlayer;$('turn').innerHTML=`<div class="turn-orb">${state.status==='finished'?'✦':'↗'}</div><div><b>${state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):botMode&&state.currentPlayer==='red'?'Ход бота':'Ходят '+names[state.currentPlayer].toLowerCase()}</b><small>${state.status==='finished'?state.reason:`Ход ${Math.floor(state.history.length/2)+1} · ${botMode&&state.currentPlayer==='red'?(botError?'Не удалось получить ответ':thinking?'Обдумывает продолжение…':'Готовится к ходу'):selected?animals[state.pieces.find(p=>p.id===selected).animal].name:'Выберите свою фигуру'}`}</small></div>`;
+patchAttribute(game,'data-mode',botMode?'bot':'local');
+patchAttribute(game,'data-active-player',state.status==='playing'?state.currentPlayer:'none');
+patchAttribute(game,'data-turn-edge',state.status==='playing'?(state.currentPlayer===(flipped?'blue':'red')?'top':'bottom'):'none');
+placeBefore(game,$(flipped?'blue-player':'red-player'),game.firstChild);
+placeBefore(game,$(flipped?'red-player':'blue-player'),game.querySelector('.game-controls')||$('hint'));
+patchAttribute($('turn'),'class','turn '+state.currentPlayer);patchHTML($('turn'),`<div class="turn-orb">${state.status==='finished'?'✦':'↗'}</div><div><b>${state.status==='finished'?(state.winner?'Победили '+names[state.winner].toLowerCase():'Ничья'):botMode&&state.currentPlayer==='red'?'Ход бота':'Ходят '+names[state.currentPlayer].toLowerCase()}</b><small>${state.status==='finished'?state.reason:`Ход ${Math.floor(state.history.length/2)+1} · ${botMode&&state.currentPlayer==='red'?(botError?'Не удалось получить ответ':thinking?'Обдумывает продолжение…':'Готовится к ходу'):selected?animals[state.pieces.find(p=>p.id===selected).animal].name:'Выберите свою фигуру'}`}</small></div>`);
 $('hint').textContent=state.status==='finished'?state.reason:selected?`${animals[state.pieces.find(p=>p.id===selected).animal].name}: ${moves.length?'выберите подсвеченную клетку':'нет доступных ходов — выберите другую фигуру'}`:`Нажмите на ${state.currentPlayer==='blue'?'жёлтую':'красную'} фигуру, чтобы увидеть доступные ходы`;
 if(botMode&&state.status==='playing'&&state.currentPlayer==='red')$('hint').textContent=botError?'Не удалось рассчитать ход. Повторите попытку или отмените свой ход.':'Бот обдумывает ход. Можно отменить свой ход или начать новую партию.';
 $('bot-retry').hidden=!botError;
 $('session-rules').textContent=`${gameRules(state).name} · версия ${gameRules(state).version}${botMode?' · '+levels[difficulty].name+' бот':''}`;
-$('count').textContent=state.history.length;$('history').innerHTML=state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>';$('undo').disabled=!undo.length;$('resign').disabled=state.status!=='playing';document.querySelectorAll('[data-animal]').forEach(button=>{button.querySelector('b').textContent=rankOf(state,button.dataset.animal);});sizeTrophies();save();}
+$('count').textContent=state.history.length;patchHTML($('history'),state.history.length?state.history.map((m,i)=>`<li>${i+1}. ${animals[m.animal].emoji} ${coords(...m.from)} → ${coords(...m.to)} ${m.capture?'× '+animals[m.capture].emoji:''}</li>`).reverse().join(''):'<li class="empty">Первый ход — начало истории.</li>');$('undo').disabled=!undo.length;$('resign').disabled=state.status!=='playing';document.querySelectorAll('[data-animal]').forEach(button=>{patchText(button.querySelector('b'),rankOf(state,button.dataset.animal));});sizeTrophies();if(persist)save();}
 async function transition(update,options={}){
   if(animating)return;
   const board=$('board');
@@ -183,7 +229,7 @@ async function clickCell(p,x,y){
     }
   }
   selected=p?.owner===state.currentPlayer?(selected===p.id?null:p.id):null;
-  render();
+  render({persist:false});
 }
 function modal(html,viewer=null,kind=null){$('dialog-content').innerHTML=html;$('dialog').classList.toggle('facing-away',!!viewer&&facingAway(viewer));$('dialog').classList.toggle('animal-dialog',kind==='animal');if(!$('dialog').open)$('dialog').showModal();}
 const animalNotes={
@@ -226,7 +272,7 @@ function startGame(rulesId,newDifficulty){
 }
 function newGame(preferredRules=gameRules(state).id,preferredDifficulty=difficulty){
   cancelBot();render();
-  modal(`<h2>Новая партия</h2><p>Настройки действуют до конца партии. Текущая запись останется в локальном архиве.</p><form id="game-options" class="game-options"><label>Правила<select name="rules">${Object.values(rulesets).map(r=>`<option value="${r.id}" ${r.id===preferredRules?'selected':''}>${r.name}</option>`).join('')}</select></label>${botMode?`<label>Сложность<select name="difficulty">${Object.entries(levels).map(([id,l])=>`<option value="${id}" ${id===preferredDifficulty?'selected':''}>${l.name}</option>`).join('')}</select></label><p>Вы играете за жёлтых и ходите первыми. Сложный уровень дольше обдумывает ход.</p>`:''}<div class="dialog-actions"><button type="button" id="keep-game">Продолжить игру</button><button type="submit" class="primary">Начать партию</button></div></form>`);
+  modal(`<h2>Новая партия</h2><p>Настройки действуют до конца партии. В новых партиях ничья по повторению наступает при пятом появлении одинаковой позиции. Текущая запись останется в локальном архиве.</p><form id="game-options" class="game-options"><label>Правила<select name="rules">${Object.values(rulesets).map(r=>`<option value="${r.id}" ${r.id===preferredRules?'selected':''}>${r.name}</option>`).join('')}</select></label>${botMode?`<label>Сложность<select name="difficulty">${Object.entries(levels).map(([id,l])=>`<option value="${id}" ${id===preferredDifficulty?'selected':''}>${l.name}</option>`).join('')}</select></label><p>Вы играете за жёлтых и ходите первыми. Сложный уровень дольше обдумывает ход.</p>`:''}<div class="dialog-actions"><button type="button" id="keep-game">Продолжить игру</button><button type="submit" class="primary">Начать партию</button></div></form>`);
   $('keep-game').onclick=()=>{$('dialog').close();runBot();};
   $('game-options').onsubmit=event=>{
     event.preventDefault();const form=new FormData(event.currentTarget);
@@ -253,7 +299,7 @@ $('open-archive').onclick=()=>{
   $('dialog-content').querySelectorAll('[data-record]').forEach(button=>button.onclick=()=>downloadRecord(records[Number(button.dataset.record)],`battle-${records[Number(button.dataset.record)].id}.json`));
 };
 $('close').onclick=()=>$('dialog').close();$('dialog').addEventListener('click',e=>{if(e.target===$('dialog')&&(e.offsetX<0||e.offsetY<0||e.offsetX>$('dialog').clientWidth||e.offsetY>$('dialog').clientHeight))$('dialog').close();});
-$('rules').onclick=()=>modal(`<div class="eyebrow">${gameRules(state).name} · ВЕРСИЯ ${gameRules(state).version}</div><h2>Добраться до логова</h2><p>${botMode?'Вы играете за жёлтых против бота. Все фишки обращены к вам.':'Два игрока сидят друг напротив друга.'} Первыми ходят жёлтые. Нажмите на животное, затем на подсвеченную клетку.</p><ul><li><b>Ход:</b> одна клетка по вертикали или горизонтали. Свои фигуры и своё логово занимать нельзя.</li><li><b>Захват:</b> сильный берёт слабого или равного. Сила указана на фигуре.</li><li><b>Особенности выбранных правил:</b> ${specialRulesText(state)}</li><li><b>Вода:</b> плавает только крыса. Лев и тигр прыгают через реку; любая крыса на линии прыжка блокирует его.</li><li><b>Ловушка:</b> в чужой ловушке сила становится 0. После выхода возвращается.</li><li><b>Победа:</b> войдите в чужое логово, захватите всех зверей или лишите соперника ходов.</li><li><b>Ничья:</b> троекратное повторение или 100 полуходов без захвата.</li></ul><p>Правила фиксируются на партию. ${botMode?'Отмена возвращает ваш ход вместе с ответом бота.':'Отменяйте ходы по согласию обоих игроков.'} Ходы сохраняются только в браузере.</p><p class="rules-reference"><a href="https://www.ymimports.com/pages/how-to-play-jungle" target="_blank" rel="noopener noreferrer">Редакция Yellow Mountain Imports ↗</a><small>Для обоих наборов у нас жёлтые начинают первыми; общие условия завершения и ничьей указаны выше.</small></p>`);
+$('rules').onclick=()=>modal(`<div class="eyebrow">${gameRules(state).name} · ВЕРСИЯ ${gameRules(state).version}</div><h2>Добраться до логова</h2><p>${botMode?'Вы играете за жёлтых против бота. Все фишки обращены к вам.':'Два игрока сидят друг напротив друга.'} Первыми ходят жёлтые. Нажмите на животное, затем на подсвеченную клетку.</p><ul><li><b>Ход:</b> одна клетка по вертикали или горизонтали. Свои фигуры и своё логово занимать нельзя.</li><li><b>Захват:</b> сильный берёт слабого или равного. Сила указана на фигуре.</li><li><b>Особенности выбранных правил:</b> ${specialRulesText(state)}</li><li><b>Вода:</b> плавает только крыса. Лев и тигр прыгают через реку; любая крыса на линии прыжка блокирует его.</li><li><b>Ловушка:</b> в чужой ловушке сила становится 0. После выхода возвращается.</li><li><b>Победа:</b> войдите в чужое логово, захватите всех зверей или лишите соперника ходов.</li><li><b>Ничья:</b> ${repetitionDescription(state).toLowerCase()} с той же стороной хода или 100 полуходов без захвата.</li></ul><p>Правила фиксируются на партию. ${botMode?'Отмена возвращает ваш ход вместе с ответом бота.':'Отменяйте ходы по согласию обоих игроков.'} Ходы сохраняются только в браузере.</p><p class="rules-reference"><a href="https://www.ymimports.com/pages/how-to-play-jungle" target="_blank" rel="noopener noreferrer">Редакция Yellow Mountain Imports ↗</a><small>Для обоих наборов у нас жёлтые начинают первыми; общие условия завершения и ничьей указаны выше.</small></p>`);
 $('animals').innerHTML=Object.entries(animals).reverse().map(([id,a])=>`<button type="button" class="animal-row" data-animal="${id}" aria-haspopup="dialog" aria-label="${a.name}: открыть описание" title="${a.name} — особенности и возможности"><span class="emoji" aria-hidden="true">${animalPortrait(id)}</span><span class="animal-name">${a.name}${['lion','tiger','rat'].includes(id)?`<small>${id==='rat'?'ПЛАВАЕТ':'ПРЫГАЕТ ЧЕРЕЗ РЕКУ'}</small>`:''}</span><b>${a.rank}</b><span class="animal-open" aria-hidden="true">↗</span></button>`).join('');
 $('animals').addEventListener('click',event=>{const button=event.target.closest('button[data-animal]');if(button)showAnimal(button.dataset.animal);});
 $('terrain-guide').innerHTML=Object.entries(terrainEntries).map(([id,entry])=>`<button type="button" class="animal-row terrain-row" data-terrain="${id}" aria-haspopup="dialog" aria-label="${entry.name}: открыть описание"><span class="emoji terrain-guide-icon" aria-hidden="true">${terrainGuideIcon(id)}</span><span class="animal-name">${entry.name}</span><span class="animal-open" aria-hidden="true">↗</span></button>`).join('');

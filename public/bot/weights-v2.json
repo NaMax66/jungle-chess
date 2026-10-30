@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "version": "baseline-2",
+  "rulesets": [
+    "battle@1",
+    "classic-ymi@1",
+    "battle@2",
+    "classic-ymi@2"
+  ],
+  "material": {
+    "rat": 140,
+    "cat": 180,
+    "dog": 240,
+    "wolf": 280,
+    "leopard": 360,
+    "tiger": 510,
+    "lion": 570,
+    "elephant": 650
+  },
+  "progress": 7,
+  "mobility": 2,
+  "trap": 80,
+  "denPressure": 65
+}

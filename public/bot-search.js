@@ -2,7 +2,7 @@ import {animals,legalMoves,move,other,terrain} from './engine.js';
 import {gameRules} from './rulesets.js';
 
 // This small, versioned evaluation contract can later be supplied by the factory.
-export const baseline={schemaVersion:1,version:'baseline-1',rulesets:['battle@1','classic-ymi@1'],material:{rat:140,cat:180,dog:240,wolf:280,leopard:360,tiger:510,lion:570,elephant:650},progress:7,mobility:2,trap:80,denPressure:65};
+export const baseline={schemaVersion:1,version:'baseline-2',rulesets:['battle@1','classic-ymi@1','battle@2','classic-ymi@2'],material:{rat:140,cat:180,dog:240,wolf:280,leopard:360,tiger:510,lion:570,elephant:650},progress:7,mobility:2,trap:80,denPressure:65};
 export const levels={easy:{name:'Лёгкий',depth:2,nodes:1800,ms:180,variation:55},medium:{name:'Средний',depth:4,nodes:14000,ms:650,variation:12},hard:{name:'Сложный',depth:6,nodes:60000,ms:1500,variation:0}};
 export function validateWeights(value,rules){
   const key=`${rules.id}@${rules.version}`;
